@@ -6,6 +6,14 @@ using SparseArrays
 using Arpack
 using JLD
 using DelimitedFiles
+using Dates
+using Statistics
+using Random
+using Distributions
+using OffsetArrays: Origin
+using OffsetArrays
+using Printf
+
 
 #=
 Name changes in functions:
@@ -14,7 +22,7 @@ in xxz.jl:
 
 in measurements_Heisbg_Hub_compare.jl:
     file name measurements_Heisbg_Hub_compare => measurements_xxz.jl
-    E_Quants => diagonalize_cluster
+    E_Quants => diagonalize_cluster_xxz
     thermal_avg_loop => thermal_avg_hT_loop
 
 in Diagonalization_clusters_Heisbg.jl:
@@ -38,34 +46,48 @@ include("consts.jl")
 # =================================================
 
 include("utilities.jl")
-export printing, reading_quantities
+export printing, reading_quantities, make_indexed_folder
 
 # =================================================
 # ==== load functions to construct Hamiltonians ===
 # =================================================
 
-include("single_site.jl")
-export single_site_quantities_Heisbg, single_site_quantities_xxz
-
 include("xxz.jl")
 export chk_m, sectors_info_gen, update_val, H_sector
 
-include("measurements_xxz.jl")
-export diagonalize_cluster, thermal_avg, thermal_avg_hT_loop
+# =================================================
+# == load functions to diagonalize Hamiltonians  ==
+# =================================================
 
-include("diagonalize_all_clusters_xxz")
+include("measurements_xxz.jl")
+export diagonalize_cluster_xxz, thermal_avg, thermal_avg_hT_loop
+
+include("diagonalize_all_clusters_xxz.jl")
 export diagonalize_all_clusters_xxz
 
+# =================================================
+# == load functions for single-site calculation  ==
+# =================================================
 
+include("single_site.jl")
+export single_site_quantities_Heisbg, single_site_quantities_xxz
 
+# =================================================
+# ====== load functions for NLC calculation  ======
+# =================================================
 
+include("thermal_avg_all_clusters_xxz.jl")
+export thermal_avg_all_clusters_xxz
 
+include("NLC_sum.jl")
+export NLC_sum
 
+# ===============================================
+# ====== load functions to do resummation  ======
+# ===============================================
 
-
-
-
-
+include("resummation.jl")
+export resummation
 
 
 end

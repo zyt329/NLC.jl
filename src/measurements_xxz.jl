@@ -13,24 +13,24 @@
     Output:
         [E, Quantity1, Quantity2...]. E, Quantity1, Quantity2... are all arrays of length 2^N
 """
-function diagonalize_cluster(;N::Int64, sectors_info::Dict{Symbol,Any}, bonds::Array{Array{Int,1},1}, J_xy::Float64 = 1.0, J_z::Float64)
+function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, bonds::Array{Array{Int,1},1}, J_xy::Float64=1.0, J_z::Float64)
     #P::Float64 = 0
     E = Float64[]
     Esq = Float64[]
     M = Float64[]
     Msq = Float64[]
     N_tot = Float64[] # place holder - to be deleted
-    for m=0:N
+    for m = 0:N
         #println("N_up=$N_up, N_dn=$N_dn")
         # construct hamiltonian for the sector and diagonalize
-        H_m = H_sector(;J_xy=J_xy, J_z=J_z, N=N, m=m, sectors_info=sectors_info, bonds=bonds)
+        H_m = H_sector(; J_xy=J_xy, J_z=J_z, N=N, m=m, sectors_info=sectors_info, bonds=bonds)
         (Es, states) = eigen(Hermitian(Matrix(H_m)))
         # calculate quantiies for each eigenstate
         for (ind, En) in enumerate(Es)
             push!(E, En)
             push!(Esq, En^2)
-            push!(M, (2m-N)*1/2)
-            push!(Msq, ((2m-N)*1/2)^2)
+            push!(M, (2m - N) * 1 / 2)
+            push!(Msq, ((2m - N) * 1 / 2)^2)
             push!(N_tot, (N)) # place holder - to be deleted
         end
     end
@@ -47,19 +47,15 @@ end
     return:
         An array of thermal average of quantities at temperature of T
 """
-function thermal_avg(;T::Real, J::Real, quantities, h::Real=0.0, g::Real)
-    # Setting all physical constants to 1.0
-    #mu_B = 1.0 #joules per tesla
-    #k_B = 1.0 #joules per K
-    #N_A = 1.0 # Avogadro's number
+function thermal_avg(; T::Real, J::Real, quantities, h::Real=0.0, g::Real)
     # passing in quantities
-    E::Array{Float64, 1} = quantities[:, 1]
-    Esq::Array{Float64, 1} = quantities[:, 2]
-    M::Array{Float64, 1} = quantities[:, 3]
-    Msq::Array{Float64, 1} = quantities[:, 4]
-    N_tot::Array{Float64, 1} = quantities[:, 5]
+    E::Array{Float64,1} = quantities[:, 1]
+    Esq::Array{Float64,1} = quantities[:, 2]
+    M::Array{Float64,1} = quantities[:, 3]
+    Msq::Array{Float64,1} = quantities[:, 4]
+    N_tot::Array{Float64,1} = quantities[:, 5]
     # calculate thermal average
-    β = 1/T
+    β = 1 / T
     Z::Float64 = 0
     E_avg::Float64 = 0
     Esq_avg::Float64 = 0
@@ -67,14 +63,14 @@ function thermal_avg(;T::Real, J::Real, quantities, h::Real=0.0, g::Real)
     Msq_avg::Float64 = 0
     N_tot_avg::Float64 = 0
     for (n, En) in enumerate(E)
-        P = exp(-β*(En*J+h*g*mu_B*M[n]/k_B))# shift energy?
+        P = exp(-β * (En * J + h * g * mu_B * M[n] / k_B))# shift energy?
         Z += P
         #E_avg += En*J * P  #doesn't include magnetic energy
-        E_avg += (En*J*k_B+h*g*mu_B*M[n]) * P #include magnetic energy
+        E_avg += (En * J * k_B + h * g * mu_B * M[n]) * P #include magnetic energy
         #Esq_avg += Esq[n]*J^2 * P # doesn't include magnetic energy
-        Esq_avg += (En*J*k_B+h*g*mu_B*M[n])^2 * P
-        M_avg += M[n]*g*mu_B * P
-        Msq_avg += Msq[n]*(g*mu_B)^2 * P
+        Esq_avg += (En * J * k_B + h * g * mu_B * M[n])^2 * P
+        M_avg += M[n] * g * mu_B * P
+        Msq_avg += Msq[n] * (g * mu_B)^2 * P
         N_tot_avg += N_tot[n] * P
     end
     return [Z E_avg Esq_avg M_avg Msq_avg N_tot_avg]
@@ -83,8 +79,8 @@ end
 """
     Read in quantities(eigen energies and corresponding average quantities of eigenstates), a range of temperatures at which we want to calculate the thermal average. Out put thermal average of quantities at the read-in temperatures.
 """
-function thermal_avg_hT_loop(;Temps, J::Real, quantities, hs=0.0, g::Real = 2.1)
-    if hs==0.0 # if "hs" is not passed in
+function thermal_avg_hT_loop(; Temps, J::Real, quantities, hs=0.0, g::Real=2.1)
+    if hs == 0.0 # if "hs" is not passed in
         Zs = Float64[]
         E_avgs = Float64[]
         Esq_avgs = Float64[]
@@ -93,7 +89,7 @@ function thermal_avg_hT_loop(;Temps, J::Real, quantities, hs=0.0, g::Real = 2.1)
         N_tot_avgs = Float64[]
         # don't loop over h if hs is not passed in
         for T in Temps
-            avgs_T = thermal_avg(;T=T, J=J, quantities=quantities, h=0.0, g=g)
+            avgs_T = thermal_avg(; T=T, J=J, quantities=quantities, h=0.0, g=g)
             push!(Zs, avgs_T[1])
             push!(E_avgs, avgs_T[2])
             push!(Esq_avgs, avgs_T[3])

@@ -6,22 +6,18 @@ using Random, Distributions
 using OffsetArrays: Origin
 using OffsetArrays
 
-
-# load julia script
-include("../Heisenberg.jl")
-include("./measurements_Heisbg_Hub_compare.jl")
-include("./consts.jl")
-
 """
 Does NLCE summation, return the raw summations.
 """
 function NLCE(; Nmax, J, g, Temps, hs, multi)
+
+    NT = length(Temps)
+    Nh = length(hs)
+
     # O is going to hold NLCE's partial sums (sums involving clusters
     # in a particular order order) for our four properties. These are
     # Sn in Eq. (3) of https://arxiv.org/pdf/0706.3254.pdf
     # I think it needs to hold quantities for single sites at O[:,1,:]
-    NT = length(Temps)
-    Nh = length(hs)
     O = zeros(Float64, 6, Nmax + 1, NT, Nh)
 
     # This array is going to hold the contribution of clusters
