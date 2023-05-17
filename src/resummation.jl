@@ -53,7 +53,7 @@ function resummation(; Nmax, raw_sum_order, nwynn, Ofilepath, Ofilename)
         Euler_O[:, :, :, m] = Euler_O[:, :, :, m-1]
         for n = 1:(m-1)
             Euler_O[:, :, :, m] +=
-                (1 / 2)^(m - 1) * O[:, raw_sum_order+n, :, :] * binomial(m - 1, n)
+                (1 / 2)^(m - 1) * O[:, raw_sum_order+n, :, :] * binomial(m - 2, n-1)
         end
     end
 
