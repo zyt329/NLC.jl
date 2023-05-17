@@ -93,7 +93,7 @@ function NLC_sum(; Nmax, Max_num_clusters, J_xy, J_z, g, Temps, hs, multi, clust
             weights[1, N, c, :, :] += Estore[c, :, :] - N * singleE[:, :]
             weights[2, N, c, :, :] += Mstore[c, :, :] - N * singleM[:, :]
             weights[3, N, c, :, :] += Esqstore[c, :, :] - N * singleEsq[:, :]
-            weights[4, N, c, :, :] += Msqstore[c, :, :] - N * singleMsq[:, :]
+            weights[4, N, c, :, :] += Msqstore[c, :, :] - N * singleMsq[:, :] 
             weights[5, N, c, :, :] += Nstore[c, :, :] - N * singleN[:, :]
             weights[6, N, c, :, :] += lnZstore[c, :, :] - N * singlelnZ[:, :]
 
