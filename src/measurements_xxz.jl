@@ -49,11 +49,11 @@ end
 """
 function thermal_avg(; T::Real, J::Real, quantities, h::Real=0.0, g::Real)
     # passing in quantities
-    E::Array{Float64,1} = quantities[:, 1]
-    Esq::Array{Float64,1} = quantities[:, 2]
-    M::Array{Float64,1} = quantities[:, 3]
-    Msq::Array{Float64,1} = quantities[:, 4]
-    N_tot::Array{Float64,1} = quantities[:, 5]
+    E::Array{Float64,1} = quantities[1]
+    Esq::Array{Float64,1} = quantities[2]
+    M::Array{Float64,1} = quantities[3]
+    Msq::Array{Float64,1} = quantities[4]
+    N_tot::Array{Float64,1} = quantities[5]
     # calculate thermal average
     β = 1 / T
     Z::Float64 = 0
