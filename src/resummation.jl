@@ -1,6 +1,6 @@
 function resummation(; Nmax, raw_sum_order, nwynn, Ofilepath, Ofilename)
 
-    O = load(Ofilepath * Ofilename * ".jld")["O"]
+    O = load(Ofilepath * Ofilename * ".jld2")["O"]
     O_size = size(O)
     Nmax_raw = O_size[2]
     NT = O_size[3]
@@ -53,7 +53,7 @@ function resummation(; Nmax, raw_sum_order, nwynn, Ofilepath, Ofilename)
         Euler_O[:, :, :, m] = Euler_O[:, :, :, m-1]
         for n = 1:(m-1)
             Euler_O[:, :, :, m] +=
-                (1 / 2)^(m - 1) * O[:, raw_sum_order+n, :, :] * binomial(m - 2, n-1)
+                (1 / 2)^(m - 1) * O[:, raw_sum_order+n, :, :] * binomial(m - 2, n - 1)
         end
     end
 

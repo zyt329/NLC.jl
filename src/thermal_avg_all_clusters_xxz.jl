@@ -3,90 +3,90 @@
 
     return `multi, thermal_avg_folder_full_path`, the first entry is the multiplicities of each clusters, to use in NLC_sum function. The second entry is path to folder with thermal average data.
 """
-function thermal_avg_all_clusters_xxz(; Nmax, Max_num_clusters, J_xy, J_z, g, Temps, hs, diag_folder_full_path::String, simulation_folder_full_path::String, clusters_info_path::String)
+function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulation_folder_full_path::String, clusters_info_path::String)
 
-    # Holding "lattice constants" (multiplicities) for all clusters
-    # in all orders. Probably good for up to order 9. Need to check
-    # what is needed exactly for the size of the second dimension.
-    multi = zeros(Int64, Nmax + 1, Max_num_clusters)
+    # ===================================================#
+    # ======      load up cluster information      ======#
+    # ===================================================#
 
-    #name = "Heisbg_order=" * string(12) #string(Nmax) #always read from Nmax=12th order data
+    # load up "lattice constants" (multiplicities) in `multi`
+    # load up all the clusters' hash tags to `cluster_hash_tags`
+    # load up bond information to 'bonds'
+    cluster_hash_tags = []
+    multi = Dict{String,Int}()
+    bonds = Dict{String,Vector{Vector{Int64}}}()
+    for N in 1:Nmax
+        cluster_multi_info_fname = joinpath(clusters_info_path, "graph_mult_triangle_" * string(N) * ".json")
 
-    # Number of temperatures
-    NT = length(Temps)
+        cluster_bond_info_fname = joinpath(clusters_info_path, "graph_bond_triangle_" * string(N) * ".json")
 
-    # Number of magnetic field h
-    Nh = length(hs)
+        multi_N = JSON.parsefile(cluster_multi_info_fname)
+
+        bonds_N = JSON.parsefile(cluster_bond_info_fname)
+
+        merge!(multi, multi_N)
+        println("Finished read in multiplicity info of order $(N)")
+
+        merge!(bonds, bonds_N)
+        println("Finished read in bond info of order $(N)")
+
+        push!(cluster_hash_tags, keys(multi_N))
+    end
+
+
+    # ===================================================#
+    # ======      make folder to store data        ======#
+    # ===================================================#
 
     # make folder to hold thermal avg data
     thermal_avg_folder_prefix = "thermal_avg_data"
 
     thermal_avg_folder_full_path = make_indexed_folder(folder_prefix=thermal_avg_folder_prefix, folder_path=simulation_folder_full_path)
 
-    # Counter for isomorphically distinct clusters
-    topN = 0
-
+    # =====================================================
+    # ======= initialize holders of termal averages =======
+    # =====================================================
+    Estore = Dict{String,Array{Float64,2}}()
+    Mstore = Dict{String,Array{Float64,2}}()
+    Esqstore = Dict{String,Array{Float64,2}}()
+    Msqstore = Dict{String,Array{Float64,2}}()
+    Nstore = Dict{String,Array{Float64,2}}()
+    lnZstore = Dict{String,Array{Float64,2}}()
     # Loop over the NLCE order
     for N = 2:Nmax
 
-        # Initializing arrays and openning files
-        Estore = zeros(Float64, Max_num_clusters, NT, Nh)
-        Mstore = zeros(Float64, Max_num_clusters, NT, Nh)
-        Esqstore = zeros(Float64, Max_num_clusters, NT, Nh)
-        Msqstore = zeros(Float64, Max_num_clusters, NT, Nh)
-        Nstore = zeros(Float64, Max_num_clusters, NT, Nh)
-        lnZstore = zeros(Float64, Max_num_clusters, NT, Nh)
+        # Generate sector info for use in diagonalization
+        sectors_info = sectors_info_gen(N=N)
 
-        # open the cluster information cluster_info_file
-        # Change 1 to 2 in the line below and in the next cell to include n.n.n. bonds
-        cluster_info_fname = joinpath(clusters_info_path, "NLCE_1_" * string(N) * ".txt")
-        cluster_info_file = open(cluster_info_fname, "r")
-
-        # the file to hold thermally average quantities
+        # the file to hold the results (T average of clusters)
         thermal_avg_fname = "thermal_avg_order$(N)"
-        thermal_avg_file = joinpath(thermal_avg_folder_full_path, thermal_avg_fname * ".jld")
+        thermal_avg_file = joinpath(thermal_avg_folder_full_path, thermal_avg_fname * ".jld2")
 
-        # Skips line with order number
-        readline(cluster_info_file)
+        # collection of all the clusters' hash tags of the Nth order
+        cluster_hash_tags_N = cluster_hash_tags[N]
 
-        # Going through the cluster_info_file for each order line by line
-        # and reading in the cluster information
-        topN = parse(Int64, readline(cluster_info_file))
-        println("ORDER", N)
+        # total number of clusters at this order
+        tot_num_clusters = length(cluster_hash_tags_N)
 
-        EOF = false
-        while EOF == false
-            # NTOP starts from 1 for convenience of indexing in julia
-            # topN starts from 0 as used in the cluster data from Ehsan
-            NTOP = topN + 1
-            line = split(readline(cluster_info_file))
+        # loop over all clusters in the Nth order
+        for (cluster_ind, cluster_hash_tags) in enumerate(cluster_hash_tags_N)
 
-            # Get the number of bonds from this line
-            nB = parse(Int64, line[1])
+            # =======================================
+            # ======= diagonalize the cluster =======
+            # =======================================
 
-            # Skip the lines with bond information
-            for b = 1:nB
-                line = split(readline(cluster_info_file))
-                # next(cluster_info_file)
-            end
+            # read in bond information
+            # since bond info start to index at 0, we need to plus 1
+            cluster_bonds = [[bond[1] + 1, bond[2] + 1] for bond in bonds[cluster_hash_tags]]
 
-            # Doing and storing quantieis:
-            #
-            # 1- Average energy, <H>
-            # 2- Average magnetization, <M>
-            # 3- Average energy squared, <H^2>, and
-            # 4- Average magnetization squared, <M^2>
-            # 5- Average total number of particle <N>
+            # diagonalize, get eigen values
+            quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
 
-            # =============================
-            # === doing thermal sums ======
-            # =============================
+            # =============================================
+            # ======= thermally average the cluster =======
+            # =============================================
 
-            # reading diagonalization data
-            quantities =
-                reading_quantities(name="diagonalized", NTOP=topN, N=N, folder_path=diag_folder_full_path)
-
-            # calculate thermal averages for all h and T
+            # take thermal averages, using eigen values obtained above
             quantities_avg = thermal_avg_hT_loop(;
                 Temps=Temps,
                 hs=hs,
@@ -95,6 +95,7 @@ function thermal_avg_all_clusters_xxz(; Nmax, Max_num_clusters, J_xy, J_z, g, Te
                 quantities=quantities
             )
 
+            # normalize by Z
             numerator_M = quantities_avg[4]
             numerator_E = quantities_avg[2]
             numerator_Esq = quantities_avg[3]
@@ -102,51 +103,24 @@ function thermal_avg_all_clusters_xxz(; Nmax, Max_num_clusters, J_xy, J_z, g, Te
             numerator_N = quantities_avg[6]
             denominator = quantities_avg[1]
 
-            # end = time.time()
-            # print(end - start)
-            Estore[NTOP, :, :] = numerator_E ./ denominator
-            Mstore[NTOP, :, :] = numerator_M ./ denominator
-            Nstore[NTOP, :, :] = numerator_N ./ denominator
-            lnZstore[NTOP, :, :] = log.(denominator)
+            # calculate & store E, M, N (N is place holder for spin models)
+            Estore[cluster_hash_tags] = numerator_E ./ denominator
+            Mstore[cluster_hash_tags] = numerator_M ./ denominator
+            Nstore[cluster_hash_tags] = numerator_N ./ denominator
+            lnZstore[cluster_hash_tags] = log.(denominator)
 
-            # It is important to do the following subtractions at the
-            # individual cluster level to make the quantities extensive
-            # for the NLCE.
-            Esqstore[NTOP, :, :] = numerator_Esq ./ denominator - Estore[NTOP, :, :] .^ 2
-            Msqstore[NTOP, :, :] = numerator_Msq ./ denominator - Mstore[NTOP, :, :] .^ 2
+            # calculate C and Chi
+            # subtract <E>^2 and <M>^2 to make sure it's extensive
+            Esqstore[cluster_hash_tags] = numerator_Esq ./ denominator - (numerator_E ./ denominator) .^ 2
+            Msqstore[cluster_hash_tags] = numerator_Msq ./ denominator - (numerator_M ./ denominator) .^ 2
 
-            # ---------------------------------------------------------
-
-            # Here, we take the opportunity to read in the "lattice constants"
-            # (multiplicities) for each topological cluster if we have reached
-            # the end of the cluster_info_file.
-
-            # skipping the subgraph information for now
-            # print(line)
-            sc_Num = parse(Int64, readline(cluster_info_file))
-            for s = 1:sc_Num
-                readline(cluster_info_file)
-            end
-            readline(cluster_info_file)
-
-            # Checking if we have reached the end of the cluster_info_file
-            if occursin("Topo", readline(cluster_info_file))
-                # next(cluster_info_file)
-                for i = 1:(topN+1)
-                    multi[N, i] = parse(Int64, split(readline(cluster_info_file))[2])
-                end
-                EOF = true
-                close(cluster_info_file)
-                break
-            else
-                # If not yet done with clusters
-                topN += 1
-                if mod(topN, 1000) == 0
-                    println("finished T averaging topN=$(topN)")
-                end
+            # progress checker
+            if mod(cluster_ind, 1000) == 0
+                println("finished T averaging #$(cluster_ind) of order $(N)")
             end
         end
-        # Saving the properties to files
+
+        # save T averages of clusters
         save(
             thermal_avg_file,
             "Estore",
@@ -162,6 +136,9 @@ function thermal_avg_all_clusters_xxz(; Nmax, Max_num_clusters, J_xy, J_z, g, Te
             "lnZstore",
             lnZstore,
         )
+
+        # progress checker for each order
+        println("finisehd T average of ORDER ", N)
     end
 
     # =====================================
@@ -170,10 +147,17 @@ function thermal_avg_all_clusters_xxz(; Nmax, Max_num_clusters, J_xy, J_z, g, Te
 
     simulation_parameters_fname = "simulation_parameters"
 
-    simulation_parameters_file = joinpath(simulation_folder_full_path, simulation_parameters_fname * ".jld")
+    simulation_parameters_file = joinpath(simulation_folder_full_path, simulation_parameters_fname * ".jld2")
 
     save(simulation_parameters_file, "Nmax", Nmax,
         "Temps", Temps, "hs", hs, "J_xy", J_xy, "J_z", J_z, "k_B", k_B, "N_A", N_A, "mu_B", mu_B, "g", g)
+
+    # create null file whose name gives parameters
+    null_file_name = @sprintf "T_[%.2f-%.2f_%i]_h_[%.2f-%.2f_%i]_Kb_%.2f_g_%.4f" Temps[1] Temps[end] length(Temps) hs[1] hs[end] length(hs) k_B g
+
+    null_file = joinpath(simulation_folder_full_path, null_file_name * ".jld2")
+
+    save(null_file, "null_file", "null file whose name reveals parameters")
 
     return multi, thermal_avg_folder_full_path
 

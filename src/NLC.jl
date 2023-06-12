@@ -4,7 +4,7 @@ module NLC
 using LinearAlgebra
 using SparseArrays
 using Arpack
-using JLD
+using JLD2
 using DelimitedFiles
 using Dates
 using Statistics
@@ -13,6 +13,7 @@ using Distributions
 using OffsetArrays: Origin
 using OffsetArrays
 using Printf
+using JSON
 
 
 #=

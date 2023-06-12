@@ -1,10 +1,45 @@
 """
 Does NLCE summation, return the raw summations.
 """
-function NLC_sum(; Nmax, Max_num_clusters, J_xy, J_z, g, Temps, hs, multi, clusters_info_path::String, simulation_folder_full_path::String, thermal_avg_folder_full_path::String)
+function NLC_sum(; Nmax, J_xy, J_z, g, Temps, hs, multi, clusters_info_path::String, simulation_folder_full_path::String, thermal_avg_folder_full_path::String)
 
     NT = length(Temps)
     Nh = length(hs)
+
+    # ===================================================#
+    # ======      load up cluster information      ======#
+    # ===================================================#
+
+    # load up "lattice constants" (multiplicities) in `multi`
+    # load up all the clusters' hash tags to `cluster_hash_tags`
+    # load up bond information to 'bonds'
+    cluster_hash_tags = []
+    multi = Dict{String,Int}()
+    subgraph_multi = Dict{String,Any}()
+    for N in 1:Nmax
+        cluster_multi_info_fname = joinpath(clusters_info_path, "graph_mult_triangle_" * string(N) * ".json")
+
+        subcluster_multi_info_fname = joinpath(clusters_info_path, "subgraph_mult_triangle_" * string(N) * ".json")
+
+        multi_N = JSON.parsefile(cluster_multi_info_fname)
+
+        subgraph_multi_N = JSON.parsefile(subcluster_multi_info_fname)
+
+        merge!(multi, multi_N)
+        println("Finished read in multiplicity info of order $(N)")
+
+        merge!(subgraph_multi, subgraph_multi_N)
+        println("Finished read in bond info of order $(N)")
+
+        push!(cluster_hash_tags, keys(multi_N))
+    end
+
+    # get cluster_hash_tag of single site
+    single_site_hash_tag = cluster_hash_tags[1]
+
+    # get all cluster_hash_tags
+    all_cluster_hash_tags = keys(multi)
+    # ========= construction in progress !!! ================
 
     # O is going to hold NLCE's partial sums (sums involving clusters
     # in a particular order order) for our four properties. These are
@@ -14,7 +49,7 @@ function NLC_sum(; Nmax, Max_num_clusters, J_xy, J_z, g, Temps, hs, multi, clust
 
     # This array is going to hold the contribution of clusters
     # from all orders
-    weights = zeros(Float64, 6, Nmax + 1, Max_num_clusters, NT, Nh)
+    weights = Dict(cluster_hash_tag => zeros(Float64, 6, NT, Nh) for cluster_hash_tag in all_cluster_hash_tags)
 
     # Hard coding the contributions from the single site by hand
     # Be careful with the order of quantities in O and in julia code,
@@ -35,14 +70,10 @@ function NLC_sum(; Nmax, Max_num_clusters, J_xy, J_z, g, Temps, hs, multi, clust
 
     # Loop over NLCE orders
     for N = 2:Nmax
-        # Opening the property binary files and loading the information
-        # on to arrays
-        cluster_info_fname = joinpath(clusters_info_path, "NLCE_1_" * string(N) * ".txt")
-        cluster_info_file = open(cluster_info_fname, "r")
 
         # read thermal avg data to quants_store
         thermal_avg_fname = "thermal_avg_order$(N)"
-        thermal_avg_file = joinpath(thermal_avg_folder_full_path, thermal_avg_fname * ".jld")
+        thermal_avg_file = joinpath(thermal_avg_folder_full_path, thermal_avg_fname * ".jld2")
         quants_store = load(thermal_avg_file)
 
         Estore = quants_store["Estore"]
@@ -52,65 +83,39 @@ function NLC_sum(; Nmax, Max_num_clusters, J_xy, J_z, g, Temps, hs, multi, clust
         Nstore = quants_store["Nstore"]
         lnZstore = quants_store["lnZstore"]
 
-        # Skiping line with order number & toplogical number
-        readline(cluster_info_file)
+        # loop over all clusters
+        for cluster_hash_tag in cluster_hash_tags[N]
+            # Subtract sub cluster contribution
+            #sc_Num = parse(Int64, readline(cluster_info_file))
 
-        # Tolopogy number
-        c = parse(Int64, readline(cluster_info_file)) + 1 # +1 for julia indexing
+            # loop over sub clusters of the current cluster
+            for sub_cluster_hash_tag in keys(subgraph_multi[cluster_hash_tag])
 
-        # Going through the cluster files again to read in the
-        # subcluster information
-        EOF = false
-        while EOF == false
-
-            line = split(readline(cluster_info_file))
-
-            # Skiping the bond info
-            for b = 1:parse(Int64, line[1])
-                readline(cluster_info_file)
-            end
-
-            # Subgraph info
-            sc_Num = parse(Int64, readline(cluster_info_file))
-            for sg = 1:sc_Num
-                line = split(readline(cluster_info_file))
-                subclusterSize = parse(Int64, line[1])
-                scMult = parse(Int64, line[2])
-                sb_topN = parse(Int64, line[3]) + 1 # +1 for julia indexing
+                scMult = subgraph_multi[cluster_hash_tag][sub_cluster_hash_tag]
 
                 # In computing contributions from clusters, we first
                 # subtract the subcluster weights, except for the single
                 # site subcluster
-                for i = 1:6
-                    weights[i, N, c, :, :] -=
-                        (weights[i, subclusterSize, sb_topN, :, :] * scMult)
+                for i = 1:6 # for all 6 quantities
+                    weights[cluster_hash_tag][i, :, :] -=
+                        (weights[sub_cluster_hash_tag][i, :, :] * scMult)
                 end
             end
 
-            # We then add the properties computed in ED and subtract the
-            # single site contributions. See https://arxiv.org/pdf/1207.3366.pdf
-            # for more details.
-            weights[1, N, c, :, :] += Estore[c, :, :] - N * singleE[:, :]
-            weights[2, N, c, :, :] += Mstore[c, :, :] - N * singleM[:, :]
-            weights[3, N, c, :, :] += Esqstore[c, :, :] - N * singleEsq[:, :]
-            weights[4, N, c, :, :] += Msqstore[c, :, :] - N * singleMsq[:, :] 
-            weights[5, N, c, :, :] += Nstore[c, :, :] - N * singleN[:, :]
-            weights[6, N, c, :, :] += lnZstore[c, :, :] - N * singlelnZ[:, :]
+            weights[cluster_hash_tag][1, :, :] += Estore[cluster_hash_tag][:, :] - N * singleE[:, :]
+            weights[cluster_hash_tag][2, :, :] += Mstore[cluster_hash_tag][:, :] - N * singleM[:, :]
+            weights[cluster_hash_tag][3, :, :] += Esqstore[cluster_hash_tag][:, :] - N * singleEsq[:, :]
+            weights[cluster_hash_tag][4, :, :] += Msqstore[cluster_hash_tag][:, :] - N * singleMsq[:, :]
+            weights[cluster_hash_tag][5, :, :] += Nstore[cluster_hash_tag][:, :] - N * singleN[:, :]
+            weights[cluster_hash_tag][6, :, :] += lnZstore[cluster_hash_tag][:, :] - N * singlelnZ[:, :]
 
             # We are now ready to put together the partial sums, using
             # the cluster contributions and corresponding lattice constants
-            O[:, N, :, :] += multi[N, c] * weights[:, N, c, :, :]
+            O[:, N, :, :] += multi[cluster_hash_tag] * weights[cluster_hash_tag][:, :, :]
 
-            readline(cluster_info_file)
-            if occursin("Topo", readline(cluster_info_file))
-                # It's the end of the cluster_info_file
-                EOF = true
-                close(cluster_info_file)
-                break
-            else
-                c += 1
-            end
+
         end
+
         println("finished NLCE order" * string(N))
     end
     # printing out partial sums for order 1 and 2, at NT=Ti
@@ -127,8 +132,8 @@ function NLC_sum(; Nmax, Max_num_clusters, J_xy, J_z, g, Temps, hs, multi, clust
         print("\n")
     end=#
 
-    # save O to O.jld
-    save(joinpath(simulation_folder_full_path, "O" * ".jld"), "O", O)
+    # save O to O.jld2
+    save(joinpath(simulation_folder_full_path, "O" * ".jld2"), "O", O)
 
     return O
 
