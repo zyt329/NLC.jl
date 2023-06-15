@@ -24,7 +24,7 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
     # loop over all symmetry sectors of Sᶻ=m           
     # only loop over half of the sectors
     # other sectors related by flipping all spins (ΠᵢSˣᵢ)
-    for m = 0:Int(ceil(N / 2) - 1)
+    for m = 0:Int(floor(N))
 
         # construct hamiltonian for the sector and diagonalize
         H_m = H_sector(; J_xy=J_xy, J_z=J_z, N=N, m=m, sectors_info=sectors_info, bonds=bonds)
