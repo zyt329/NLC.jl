@@ -13,19 +13,26 @@
     Output:
         [E, Quantity1, Quantity2...]. E, Quantity1, Quantity2... are all arrays of length 2^N
 """
-function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, bonds::Array{Array{Int,1},1}, J_xy::Float64=1.0, J_z::Float64)
+function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_sectors_info=nothing, bonds::Array{Array{Int,1},1}, J_xy::Float64=1.0, J_z::Float64)
     #P::Float64 = 0
     E = Float64[]
     Esq = Float64[]
     M = Float64[]
     Msq = Float64[]
     N_tot = Float64[] # place holder - to be deleted
-    for m = 0:N
-        #println("N_up=$N_up, N_dn=$N_dn")
+
+    # loop over all symmetry sectors of Sᶻ=m           
+    # only loop over half of the sectors
+    # other sectors related by flipping all spins (ΠᵢSˣᵢ)
+    for m = 0:Int(floor(N))
+
         # construct hamiltonian for the sector and diagonalize
         H_m = H_sector(; J_xy=J_xy, J_z=J_z, N=N, m=m, sectors_info=sectors_info, bonds=bonds)
+
+        # diagonalize the sector
         (Es, states) = eigen(Hermitian(Matrix(H_m)))
-        # calculate quantiies for each eigenstate
+
+        # calculate and record quantities for each eigenstate
         for (ind, En) in enumerate(Es)
             push!(E, En)
             push!(Esq, En^2)
@@ -33,7 +40,48 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, bon
             push!(Msq, ((2m - N) * 1 / 2)^2)
             push!(N_tot, (N)) # place holder - to be deleted
         end
+
+        # record quantities for Sᶻ=-m sector
+        for (ind, En) in enumerate(Es)
+            push!(E, En)
+            push!(Esq, En^2)
+            push!(M, (N - 2m) * 1 / 2)
+            push!(Msq, ((N - 2m) * 1 / 2)^2)
+            push!(N_tot, (N)) # place holder - to be deleted
+        end
     end
+
+    # treat Sᶻ=0 sector separately (when N is even)
+    if iseven(N)
+
+        # construct even and odd sectors' Hamiltonian
+        H_m0_even, H_m0_odd = H_m0_sector(J_xy=J_xy, J_z=J_z, N=N, m0_sectors_info=m0_sectors_info, bonds=bonds)
+
+        # diagonalize the even sector
+        (Es, states) = eigen(Hermitian(Matrix(H_m0_even)))
+
+        # calculate and record quantities for each eigenstate
+        for (ind, En) in enumerate(Es)
+            push!(E, En)
+            push!(Esq, En^2)
+            push!(M, 0)
+            push!(Msq, 0)
+            push!(N_tot, (N)) # place holder - to be deleted
+        end
+
+        # diagonalize the odd sector
+        (Es, states) = eigen(Hermitian(Matrix(H_m0_odd)))
+
+        # calculate and record quantities for each eigenstate
+        for (ind, En) in enumerate(Es)
+            push!(E, En)
+            push!(Esq, En^2)
+            push!(M, 0)
+            push!(Msq, 0)
+            push!(N_tot, (N)) # place holder - to be deleted
+        end
+    end
+
     return [E, Esq, M, Msq, N_tot]
 end
 

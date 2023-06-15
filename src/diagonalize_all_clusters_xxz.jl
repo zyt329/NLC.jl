@@ -3,7 +3,7 @@
 
     By default we set J_xy=1.0 and J_z=J_z/J_xy. Results for Different J_z could be extracted by multiplying E by J_xy.
 """
-function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64, clusters_info_path::String, diag_folder_path::String, skip_exit_files = true)
+function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64, clusters_info_path::String, diag_folder_path::String, skip_exit_files=true)
 
     # ===================================================#
     # ======      load up cluster information      ======#
@@ -34,6 +34,13 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
 
         # Generate sector info for julia script
         sectors_info = sectors_info_gen(N=N)
+        # Generate Sᶻ=0 sector info when N is even
+        if iseven(N)
+            m0_sectors_info = m0_sectors_info_gen(sectors_info=sectors_info, N=N)
+        else
+            # need to pass this variable to diagonalization function
+            m0_sectors_info = nothing
+        end
 
         # collection of all the clusters' hash tags of the Nth order
         cluster_hash_tags_N = cluster_hash_tags[N]
@@ -45,7 +52,7 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
         for (cluster_ind, cluster_hash_tag) in enumerate(cluster_hash_tags_N)
 
             # the file to hold the eigen values of the cluster
-            diag_name = "diagonalized_order$(N)_id"*cluster_hash_tag
+            diag_name = "diagonalized_order$(N)_id" * cluster_hash_tag
             diag_file = joinpath(diag_folder_path, diag_name * ".jld2")
 
             # If enabled, skip if diagonalization data exists
@@ -65,19 +72,19 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
             cluster_bonds = [[bond[1] + 1, bond[2] + 1] for bond in bonds[cluster_hash_tag]]
 
             # print indicator of saving file
-            progress_message = @sprintf "diagonalizing cluster # %d, %.2f" (cluster_ind) (100*cluster_ind/tot_num_clusters)
-            progress_message = progress_message*"% of order $(N)"
-            print(progress_message*"\r")
+            progress_message = @sprintf "diagonalizing cluster # %d, %.2f" (cluster_ind) (100 * cluster_ind / tot_num_clusters)
+            progress_message = progress_message * "% of order $(N)"
+            print(progress_message * "\r")
             # diagonalize, get eigen values
-            quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
+            quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, m0_sectors_info=m0_sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
 
             # print indicator of saving file
-            print("saving data"*"\r")
+            print("saving data" * "\r")
             # save eigen values to file
             # only save E and M for each state to save space
-            jldopen(diag_file,"a+", compress=true) do file
-                file["E"]=quantities[1]
-                file["M"]=quantities[3]
+            jldopen(diag_file, "a+", compress=true) do file
+                file["E"] = quantities[1]
+                file["M"] = quantities[3]
             end
 
 
