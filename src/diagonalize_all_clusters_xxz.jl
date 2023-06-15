@@ -60,8 +60,20 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
                 if isfile(diag_file)
                     # skip diagonalization if file exists
                     continue
+                else
+                    try
+                        # try making file before doing diagonalization,
+                        # to prevent other programs
+                        # from doing the same diagonalization simultaneously 
+                        jldopen(diag_file, "a+", compress=true) do file
+                        end
+                    catch e
+                        saving_error_message = @sprintf "Something went wrong creating .jld2 file for cluster # %d" (cluster_ind)
+                        println(saving_error_message)
+                    end
                 end
             end
+
 
             # =======================================
             # ======= diagonalize the cluster =======
@@ -75,17 +87,26 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
             progress_message = @sprintf "diagonalizing cluster # %d, %.2f" (cluster_ind) (100 * cluster_ind / tot_num_clusters)
             progress_message = progress_message * "% of order $(N)"
             print(progress_message * "\r")
+
             # diagonalize, get eigen values
             quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, m0_sectors_info=m0_sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
 
             # print indicator of saving file
             print("saving data" * "\r")
-            # save eigen values to file
-            # only save E and M for each state to save space
-            jldopen(diag_file, "a+", compress=true) do file
-                file["E"] = quantities[1]
-                file["M"] = quantities[3]
+            # use the try block to prevent crush when 2 machines try to save 
+            # diagonalization info of the same cluster
+            try
+                # save eigen values to file
+                # only save E and M for each state to save space
+                jldopen(diag_file, "a+", compress=true) do file
+                    file["E"] = quantities[1]
+                    file["M"] = quantities[3]
+                end
+            catch e
+                saving_error_message = @sprintf "Something wrong with saving cluster # %d, probably due to existing diagonalization data of the same cluster produced from other (parallely) running machines" (cluster_ind)
+                println(saving_error_message)
             end
+
 
 
             # progress checker
