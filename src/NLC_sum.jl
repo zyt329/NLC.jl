@@ -70,7 +70,7 @@ function NLC_sum(; Nmax, J_xy, J_z, g, Temps, hs, multi, clusters_info_path::Str
 
     # Loop over NLCE orders
     for N = 2:Nmax
-
+        """
         # read thermal avg data to quants_store
         thermal_avg_fname = "thermal_avg_order$(N)"
         thermal_avg_file = joinpath(thermal_avg_folder_full_path, thermal_avg_fname * ".jld2")
@@ -82,11 +82,27 @@ function NLC_sum(; Nmax, J_xy, J_z, g, Temps, hs, multi, clusters_info_path::Str
         Msqstore = quants_store["Msqstore"]
         Nstore = quants_store["Nstore"]
         lnZstore = quants_store["lnZstore"]
+        """
+
+        thermal_avg_folder_orderN = "order$(N)"
 
         # loop over all clusters
         for cluster_hash_tag in cluster_hash_tags[N]
             # Subtract sub cluster contribution
             #sc_Num = parse(Int64, readline(cluster_info_file))
+
+            # the file holding the thermal averages of the clusters
+
+            thermal_avg_fname = "thermal_avg_id" * cluster_hash_tag
+            thermal_avg_file = joinpath(thermal_avg_folder_full_path, thermal_avg_folder_orderN, thermal_avg_fname * ".jld2")
+            quants_store = jldopen(thermal_avg_file)
+
+            Estore = quants_store["E"]
+            Mstore = quants_store["M"]
+            Esqstore = quants_store["Esq"]
+            Msqstore = quants_store["Msq"]
+            Nstore = quants_store["N"]
+            lnZstore = quants_store["lnZ"]
 
             # loop over sub clusters of the current cluster
             for sub_cluster_hash_tag in keys(subgraph_multi[cluster_hash_tag])
@@ -102,12 +118,12 @@ function NLC_sum(; Nmax, J_xy, J_z, g, Temps, hs, multi, clusters_info_path::Str
                 end
             end
 
-            weights[cluster_hash_tag][1, :, :] += Estore[cluster_hash_tag][:, :] - N * singleE[:, :]
-            weights[cluster_hash_tag][2, :, :] += Mstore[cluster_hash_tag][:, :] - N * singleM[:, :]
-            weights[cluster_hash_tag][3, :, :] += Esqstore[cluster_hash_tag][:, :] - N * singleEsq[:, :]
-            weights[cluster_hash_tag][4, :, :] += Msqstore[cluster_hash_tag][:, :] - N * singleMsq[:, :]
-            weights[cluster_hash_tag][5, :, :] += Nstore[cluster_hash_tag][:, :] - N * singleN[:, :]
-            weights[cluster_hash_tag][6, :, :] += lnZstore[cluster_hash_tag][:, :] - N * singlelnZ[:, :]
+            weights[cluster_hash_tag][1, :, :] += Estore[:, :] - N * singleE[:, :]
+            weights[cluster_hash_tag][2, :, :] += Mstore[:, :] - N * singleM[:, :]
+            weights[cluster_hash_tag][3, :, :] += Esqstore[:, :] - N * singleEsq[:, :]
+            weights[cluster_hash_tag][4, :, :] += Msqstore[:, :] - N * singleMsq[:, :]
+            weights[cluster_hash_tag][5, :, :] += Nstore[:, :] - N * singleN[:, :]
+            weights[cluster_hash_tag][6, :, :] += lnZstore[:, :] - N * singlelnZ[:, :]
 
             # We are now ready to put together the partial sums, using
             # the cluster contributions and corresponding lattice constants

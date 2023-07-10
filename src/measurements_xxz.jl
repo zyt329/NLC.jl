@@ -95,15 +95,28 @@ end
     return:
         An array of thermal average of quantities at temperature of T
 """
-function thermal_avg(; T::Real, J::Real, quantities, h::Real=0.0, g::Real)
+function thermal_avg(; T::Real, J::Real, eig_vals, h::Real=0.0, g::Real)
+
     # passing in quantities
-    E::Array{Float64,1} = quantities[1]
-    Esq::Array{Float64,1} = quantities[2]
-    M::Array{Float64,1} = quantities[3]
-    Msq::Array{Float64,1} = quantities[4]
-    N_tot::Array{Float64,1} = quantities[5]
+    E::Array{Float64,1} = read(eig_vals["E"])
+    M::Array{Float64,1} = read(eig_vals["M"])
+    N_tot::Array{Float64,1} = ones(size(E)) # place holder
+
     # calculate thermal average
     β = 1 / T
+
+    # using matrix multiplication for speed
+    E_with_h::Array{Float64,1} = (J * k_B) .* E .+ (h * g * mu_B) .* M
+    P::Array{Float64,1} = exp.((-β / k_B) .* E_with_h)
+    Z::Float64 = sum(P)
+    E_avg::Float64 = sum(E_with_h .* P) / Z
+    M_avg::Float64 = g * mu_B * sum(M .* P) / Z
+    Esq_avg::Float64 = sum(E_with_h .^ 2 .* P) / Z
+    Msq_avg::Float64 = (g * mu_B)^2 * sum(M .^ 2 .* P) / Z
+    N_tot_avg::Float64 = sum(N_tot .* P) / Z
+
+
+    """
     Z::Float64 = 0
     E_avg::Float64 = 0
     Esq_avg::Float64 = 0
@@ -121,55 +134,98 @@ function thermal_avg(; T::Real, J::Real, quantities, h::Real=0.0, g::Real)
         Msq_avg += Msq[n] * (g * mu_B)^2 * P
         N_tot_avg += N_tot[n] * P
     end
-    return [Z E_avg Esq_avg M_avg Msq_avg N_tot_avg]
+    """
+    return Dict("Z" => Z, "E" => E_avg, "Esq" => Esq_avg, "M" => M_avg, "Msq" => Msq_avg, "N" => N_tot_avg)
 end
+
+
+quant_names = ['E' "Esq" 'M' "Msq" "N_tot"]
 
 """
     Read in quantities(eigen energies and corresponding average quantities of eigenstates), a range of temperatures at which we want to calculate the thermal average. Out put thermal average of quantities at the read-in temperatures.
+
+    Method for when h is passed in.
 """
-function thermal_avg_hT_loop(; Temps, J::Real, quantities, hs=0.0, g::Real=2.1)
-    if hs == 0.0 # if "hs" is not passed in
-        Zs = Float64[]
-        E_avgs = Float64[]
-        Esq_avgs = Float64[]
-        M_avgs = Float64[]
-        Msq_avgs = Float64[]
-        N_tot_avgs = Float64[]
-        # don't loop over h if hs is not passed in
-        for T in Temps
-            avgs_T = thermal_avg(; T=T, J=J, quantities=quantities, h=0.0, g=g)
-            push!(Zs, avgs_T[1])
-            push!(E_avgs, avgs_T[2])
-            push!(Esq_avgs, avgs_T[3])
-            push!(M_avgs, avgs_T[4])
-            push!(Msq_avgs, avgs_T[5])
-            push!(N_tot_avgs, avgs_T[6])
-        end
-    else # if "hs" is passed in
-        NT = length(Temps)
-        Nh = length(hs)
-        Zs = Array{Float64}(undef, NT, Nh)
-        E_avgs = Array{Float64}(undef, NT, Nh)
-        Esq_avgs = Array{Float64}(undef, NT, Nh)
-        M_avgs = Array{Float64}(undef, NT, Nh)
-        Msq_avgs = Array{Float64}(undef, NT, Nh)
-        N_tot_avgs = Array{Float64}(undef, NT, Nh)
-        for (h_ind, h) in enumerate(hs)
-            for (T_ind, T) in enumerate(Temps)
-                avgs_T = thermal_avg(T=T, J=J, quantities=quantities, h=h, g=g)
-                Zs[T_ind, h_ind] = avgs_T[1]
-                E_avgs[T_ind, h_ind] = avgs_T[2]
-                Esq_avgs[T_ind, h_ind] = avgs_T[3]
-                M_avgs[T_ind, h_ind] = avgs_T[4]
-                Msq_avgs[T_ind, h_ind] = avgs_T[5]
-                N_tot_avgs[T_ind, h_ind] = avgs_T[6]
-            end
+function thermal_avg_hT_loop(; Temps, J::Real, diag_file_path::String, hs::Vector{Type}=[0.0], g::Real=2.1) where {Type<:Real}
+    # read in eigen values for the cluster (using HDF5)
+    eig_vals = h5open(diag_file_path, "r")
+
+    NT = length(Temps)
+    Nh = length(hs)
+    Zs = Array{Float64}(undef, NT, Nh)
+    E_avgs = Array{Float64}(undef, NT, Nh)
+    Esq_avgs = Array{Float64}(undef, NT, Nh)
+    M_avgs = Array{Float64}(undef, NT, Nh)
+    Msq_avgs = Array{Float64}(undef, NT, Nh)
+    N_tot_avgs = Array{Float64}(undef, NT, Nh)
+    for (h_ind, h) in enumerate(hs)
+        for (T_ind, T) in enumerate(Temps)
+            avgs_T = thermal_avg(T=T, J=J, eig_vals=eig_vals, h=h, g=g)
+            Zs[T_ind, h_ind] = avgs_T["Z"]
+            E_avgs[T_ind, h_ind] = avgs_T["E"]
+            Esq_avgs[T_ind, h_ind] = avgs_T["Esq"]
+            M_avgs[T_ind, h_ind] = avgs_T["M"]
+            Msq_avgs[T_ind, h_ind] = avgs_T["Msq"]
+            N_tot_avgs[T_ind, h_ind] = avgs_T["N"]
         end
     end
-    return [Zs, E_avgs, Esq_avgs, M_avgs, Msq_avgs, N_tot_avgs]
+
+    return Dict("Z" => Zs, "E" => E_avgs, "Esq" => Esq_avgs, "M" => M_avgs, "Msq" => Msq_avgs, "N" => N_tot_avgs)
 end
 
-quant_names = ['E' "Esq" 'M' "Msq" "N_tot"]
+"""
+function thermal_avg_hT_loop(; Temps, J::Real, diag_file_path::String, hs::Vector{Type}=[0.0], g::Real=2.1, t_load, t_sum) where {Type<:Real}
+    # read in eigen values for the cluster
+    dt_load = @elapsed begin
+        eig_vals = jldopen(diag_file_path, "r")
+    end
+    t_load[1] += dt_load
+
+    NT = length(Temps)
+    Nh = length(hs)
+
+    Zs = Array{Float64}(undef, Nh, NT)
+    E_avgs = Array{Float64}(undef, Nh, NT)
+    Esq_avgs = Array{Float64}(undef, Nh, NT)
+    M_avgs = Array{Float64}(undef, Nh, NT)
+    Msq_avgs = Array{Float64}(undef, Nh, NT)
+    N_tot_avgs = Array{Float64}(undef, Nh, NT)
+    
+    # expand every quantities to 3-d Matrix, Q[eig_val_index, h_index, T_index]
+    E_with_h::Array{Float64,2} = ((J * k_B) * E)  + (h * g * mu_B) * M
+
+
+    #=
+    dt_sum = @elapsed begin
+        # using matrix multiplication for speed
+        E_with_h::Array{Float64,1} = (J * k_B) * E + (h * g * mu_B) * M
+        P::Array{Float64,1} = exp.((-β / k_B) * E_with_h)
+        Z::Float64 = sum(P)
+        E_avg::Float64 = sum(E_with_h .* P) / Z
+        M_avg::Float64 = g * mu_B * sum(M .* P) / Z
+        Esq_avg::Float64 = sum(E_with_h .^ 2 .* P) / Z
+        Msq_avg::Float64 = (g * mu_B)^2 * sum(M .^ 2 .* P) / Z
+        N_tot_avg::Float64 = sum(N_tot .* P) / Z
+    end
+
+
+    =#
+
+
+
+    avgs_T = thermal_avg(T=T, J=J, eig_vals=eig_vals, h=h, g=g, t_load=t_load, t_sum=t_sum)
+    Zs[T_ind, h_ind] = avgs_T["Z"]
+    E_avgs[T_ind, h_ind] = avgs_T["E"]
+    Esq_avgs[T_ind, h_ind] = avgs_T["Esq"]
+    M_avgs[T_ind, h_ind] = avgs_T["M"]
+    Msq_avgs[T_ind, h_ind] = avgs_T["Msq"]
+    N_tot_avgs[T_ind, h_ind] = avgs_T["N"]
+    
+
+    return Dict("Z" => Zs, "E" => E_avgs, "Esq" => Esq_avgs, "M" => M_avgs, "Msq" => Msq_avgs, "N" => N_tot_avgs)
+end
+"""
+
 #=
 Main.include("Hubbard.jl")
 bonds=[[1,2]]

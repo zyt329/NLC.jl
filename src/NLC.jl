@@ -14,6 +14,7 @@ using OffsetArrays: Origin
 using OffsetArrays
 using Printf
 using JSON
+using HDF5
 
 
 #=
@@ -90,5 +91,11 @@ export NLC_sum
 include("resummation.jl")
 export resummation
 
+# =====================================================
+# ====== load functions to check data integrity  ======
+# =====================================================
+
+include("data_integrity_checker.jl")
+export data_integrity_checker
 
 end
