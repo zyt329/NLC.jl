@@ -67,6 +67,9 @@ export diagonalize_cluster_xxz, thermal_avg, thermal_avg_hT_loop
 include("diagonalize_all_clusters_xxz.jl")
 export diagonalize_all_clusters_xxz
 
+include("diagonalize_specific_cluster_xxz.jl")
+export diagonalize_specific_cluster_xxz
+
 # =================================================
 # == load functions for single-site calculation  ==
 # =================================================
@@ -80,6 +83,10 @@ export single_site_quantities_Heisbg, single_site_quantities_xxz
 
 include("thermal_avg_all_clusters_xxz.jl")
 export thermal_avg_all_clusters_xxz
+
+# thermal average single cluster
+include("thermal_avg_specific_cluster_xxz.jl")
+export thermal_avg_cluster
 
 include("NLC_sum.jl")
 export NLC_sum

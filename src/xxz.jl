@@ -200,10 +200,10 @@ function H_m0_sector(; J_xy::Float64, J_z::Float64, N::Int64, m0_sectors_info::D
                 # flip all the spins of the "flipped_state"
                 reflected_flipped_state = 2^N - 1 - flipped_state
 
-                if flipped_state < reflected_flipped_state # 'flipped_state' in the odd sector
+                if flipped_state < reflected_flipped_state # 'flipped_state' is basis state in the odd sector
                     update_val(row_inds_odd, col_inds_odd, vals_odd, row_ind=odd_state_num[state], col_ind=odd_state_num[flipped_state], val=(1 / 2) * J_xy)
-                else # 'reflected_flipped_state' in the odd sector
-                    update_val(row_inds_odd, col_inds_odd, vals_odd, row_ind=odd_state_num[state], col_ind=odd_state_num[reflected_flipped_state], val=(1 / 2) * J_xy)
+                else # 'reflected_flipped_state' is basis state in the odd sector
+                    update_val(row_inds_odd, col_inds_odd, vals_odd, row_ind=odd_state_num[state], col_ind=odd_state_num[reflected_flipped_state], val=-(1 / 2) * J_xy)
                 end
                 # =================================================
             end

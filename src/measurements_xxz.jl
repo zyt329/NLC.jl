@@ -21,7 +21,7 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
     Msq = Float64[]
     N_tot = Float64[] # place holder - to be deleted
 
-    # loop over all symmetry sectors of Sᶻ=m           
+    # loop over all symmetry sectors of number of up spins m           
     # only loop over half of the sectors
     # other sectors related by flipping all spins (ΠᵢSˣᵢ)
     for m = 0:Int(ceil(N / 2) - 1)
@@ -146,9 +146,9 @@ quant_names = ['E' "Esq" 'M' "Msq" "N_tot"]
 
     Method for when h is passed in.
 """
-function thermal_avg_hT_loop(; Temps, J::Real, diag_file_path::String, hs::Vector{Type}=[0.0], g::Real=2.1) where {Type<:Real}
+function thermal_avg_hT_loop(; Temps, J::Real, eig_vals, hs::Vector{Type}=[0.0], g::Real=2.1) where {Type<:Real}
     # read in eigen values for the cluster (using HDF5)
-    eig_vals = h5open(diag_file_path, "r")
+    # eig_vals = h5open(diag_file_path, "r")
 
     NT = length(Temps)
     Nh = length(hs)

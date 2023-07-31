@@ -88,7 +88,8 @@ function single_site_quantities_xxz(;Ts, hs=0.0, g::Real)
             end
         end
     end
-    return [Z, E,Esq, M, Msq, N_tot]
+    return Dict("Z" => Z, "E" => E, "Esq" => Esq, "M" => M, "Msq" => Msq, "N" => N_tot)
+    #[Z, E,Esq, M, Msq, N_tot]
 end
 #result = single_site_quantities(Ts=Temps,hs=[-2.0],g=2.1)
 #println(result[4]*N_A)

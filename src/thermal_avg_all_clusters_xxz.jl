@@ -44,15 +44,17 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
     # make folder to hold thermal avg data
     thermal_avg_folder_prefix = "thermal_avg_data"
 
-    thermal_avg_folder_full_path = make_indexed_folder(folder_prefix=thermal_avg_folder_prefix, folder_path=simulation_folder_full_path)
+    # make folder if doesn't exist. Don't index the folder.
+    thermal_avg_folder_full_path = joinpath(simulation_folder_full_path, thermal_avg_folder_prefix)
+    !ispath(thermal_avg_folder_full_path) && mkdir(thermal_avg_folder_full_path)
+    #make_indexed_folder(folder_prefix=thermal_avg_folder_prefix, folder_path=simulation_folder_full_path)
 
     # =====================================================
     # ======= initialize holders of termal averages =======
     # =====================================================
 
-
     # Loop over the NLCE order
-    for N = Nmax:-1:2
+    for N = 2:Nmax
 
         # the file to hold the results (T average of clusters)
         thermal_avg_fname = "thermal_avg_order$(N)"
@@ -64,10 +66,9 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
         # total number of clusters at this order
         tot_num_clusters = length(cluster_hash_tags_N)
 
-
-        # create folder to hold data of order n
+        # create folder to hold data of order n, if folder doesn't exist
         thermal_avg_folder_orderN = "order$(N)"
-        mkdir(joinpath(thermal_avg_folder_full_path, "order$(N)"))
+        !ispath(joinpath(thermal_avg_folder_full_path, "order$(N)")) && mkdir(joinpath(thermal_avg_folder_full_path, "order$(N)"))
 
         # loop over all clusters in the Nth order
         for (cluster_ind, cluster_hash_tags) in enumerate(cluster_hash_tags_N)
@@ -96,7 +97,25 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             # If enabled, skip if thermal average data exists
             if skip_exit_files
                 if isfile(thermal_avg_file)
-                    # skip diagonalization if file exists
+                    #=
+                    try
+                        # skip diagonalization if file exists and can be opened properly
+                        h5open(thermal_avg_file, "r") do file
+                        end
+                        # progress checker
+                        if mod(cluster_ind, 1000) == 0
+                            println("finished checking #$(cluster_ind) out of total $(tot_num_clusters) clusters of order $(N)")
+                        end
+                        continue
+                    catch e
+                        # make file to replace the existing file if can't be opened properly
+                        jldopen(thermal_avg_file, "w", compress=false) do file
+                        end
+                        saving_error_message = @sprintf "Something went wrong opening .jld2 file for cluster # %d, overwritten file " (cluster_ind)
+                        saving_error_message = saving_error_message * thermal_avg_file
+                        println(saving_error_message)
+                    end
+                    =#
                     continue
                 else
                     try
@@ -124,6 +143,8 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             # read in eigen values for the cluster
             #eig_vals_data = h5open(diag_file_path, "r")
             #eig_vals = Dict("E" => read(eig_vals_data["E"]), "M" => read(eig_vals_data["M"]))
+            # read in eigen values for the cluster (using HDF5)
+            eig_vals = h5open(diag_file_path, "r")
 
             # take thermal averages of all T and h
             quantities_avg = thermal_avg_hT_loop(;
@@ -131,25 +152,16 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
                 hs=hs,
                 J=J_xy,
                 g=g,
-                diag_file_path=diag_file_path
+                eig_vals=eig_vals
             )
 
-            """
-            # normalize by Z
-            numerator_M = quantities_avg[4]
-            numerator_E = quantities_avg[2]
-            numerator_Esq = quantities_avg[3]
-            numerator_Msq = quantities_avg[5]
-            numerator_N = quantities_avg[6]
-            denominator = quantities_avg[1]
-            """
+            close(eig_vals)
 
             # calculate & store E, M, N (N is place holder for spin models)
             Estore = quantities_avg["E"]
             Mstore = quantities_avg["M"]
             Nstore = quantities_avg["N"]
             lnZstore = log.(quantities_avg["Z"])
-
             # calculate C and Chi
             # subtract <E>^2 and <M>^2 to make sure it's extensive
             Esqstore = quantities_avg["Esq"] .- quantities_avg["E"] .^ 2
