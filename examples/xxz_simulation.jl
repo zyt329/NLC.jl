@@ -13,7 +13,7 @@ function run_NLCE(; J_z_by_J_xy, Nmax)
     #================================#
 
     # temperature values
-    Temps = vcat(range(0.01, 0.6, length=31))
+    Temps = vcat(exp10.(range(log10(0.05), log10(5), length=41)))
     NT = length(Temps)
 
     # field values
@@ -43,11 +43,11 @@ function run_NLCE(; J_z_by_J_xy, Nmax)
     clusters_info_path = "/nfs/home/zyt329/Research/xxz/NLC_clusters_info_JSON/triangle/"
 
     # make simulation folders
-    simulation_folder_prefix = @sprintf "hashtag_simulation_J_z[J_xy%.4f" (J_z / J_xy)
+    # simulation_folder_prefix = @sprintf "hashtag_simulation_J_z[J_xy%.4f" (J_z / J_xy)
 
-    simulation_folder_full_path = "/nfs/home/zyt329/Research/xxz/runs/hashtag_simulation_J_z[J_xy32.0000-1"
+    simulation_folder_full_path = "/nfs/home/zyt329/Research/xxz/runs/hashtag_simulation_J_z[J_xy32.0000-2"
 
-    #simulation_folder_full_path = make_indexed_folder(folder_prefix=simulation_folder_prefix, folder_path="/nfs/home/zyt329/Research/xxz/runs/")
+    # simulation_folder_full_path = make_indexed_folder(folder_prefix=simulation_folder_prefix, folder_path="/nfs/home/zyt329/Research/xxz/runs/")
 
     # ==============================
     # ==== thermally average  ======

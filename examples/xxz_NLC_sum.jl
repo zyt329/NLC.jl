@@ -52,7 +52,7 @@ function run_NLC_sum(; Nmax)
     # make simulation folders
     #simulation_folder_prefix = @sprintf "hashtag_simulation_J_z[J_xy%.4f" (J_z / J_xy)
 
-    simulation_folder_full_path = "/nfs/home/zyt329/Research/xxz/runs/hashtag_simulation_J_z[J_xy32.0000-1"
+    simulation_folder_full_path = "/nfs/home/zyt329/Research/xxz/runs/hashtag_simulation_J_z[J_xy32.0000-2"
 
     #make_indexed_folder(folder_prefix=simulation_folder_prefix, folder_path="/nfs/home/zyt329/Research/xxz/runs/")
 

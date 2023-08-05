@@ -66,6 +66,10 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
         # total number of clusters at this order
         tot_num_clusters = length(cluster_hash_tags_N)
 
+        # sleep for 0-2 seconds to avoid parallel programs get synchronized 
+        # and crush when making folder in the next line
+        sleep(rand() * 2)
+
         # create folder to hold data of order n, if folder doesn't exist
         thermal_avg_folder_orderN = "order$(N)"
         !ispath(joinpath(thermal_avg_folder_full_path, "order$(N)")) && mkdir(joinpath(thermal_avg_folder_full_path, "order$(N)"))
