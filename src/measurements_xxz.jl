@@ -20,6 +20,7 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
     M = Float64[]
     Msq = Float64[]
     N_tot = Float64[] # place holder - to be deleted
+    Sz_corr_NN = Float64[]
 
     # loop over all symmetry sectors of number of up spins m           
     # only loop over half of the sectors
@@ -33,13 +34,22 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
         (Es, states) = eigen(Hermitian(Matrix(H_m)))
 
         # calculate and record quantities for each eigenstate
+        Sz_corr_NN_msector = []
         for (ind, En) in enumerate(Es)
+
+            eigstate = states[:, ind]
+            Sz_corr_NN_val = Sz_corr_NN_meas(E=En, eigstate=eigstate, N=N, m=m, sectors_info=sectors_info, m0_sectors_info=m0_sectors_info, bonds=bonds, J_xy=J_xy, J_z=J_z)
+
             push!(E, En)
             push!(Esq, En^2)
             push!(M, (2m - N) * 1 / 2)
             push!(Msq, ((2m - N) * 1 / 2)^2)
             push!(N_tot, (N)) # place holder - to be deleted
+
+            # push to container of the "m" sector - to reuse for the "-m" sector below
+            push!(Sz_corr_NN_msector, Sz_corr_NN_val)
         end
+        push!(Sz_corr_NN, Sz_corr_NN_msector...)
 
         # record quantities for Sᶻ=-m sector
         for (ind, En) in enumerate(Es)
@@ -49,6 +59,7 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
             push!(Msq, ((N - 2m) * 1 / 2)^2)
             push!(N_tot, (N)) # place holder - to be deleted
         end
+        push!(Sz_corr_NN, Sz_corr_NN_msector...)
     end
 
     # treat Sᶻ=0 sector separately (when N is even)
@@ -62,11 +73,16 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
 
         # calculate and record quantities for each eigenstate
         for (ind, En) in enumerate(Es)
+            eigstate = states[:, ind]
+            Sz_corr_NN_val = Sz_corr_NN_meas(E=En, eigstate=eigstate, N=N, m=Int(N / 2), iseven=true, sectors_info=sectors_info, m0_sectors_info=m0_sectors_info, bonds=bonds, J_xy=J_xy, J_z=J_z)
+
             push!(E, En)
             push!(Esq, En^2)
             push!(M, 0)
             push!(Msq, 0)
             push!(N_tot, (N)) # place holder - to be deleted
+            push!(Sz_corr_NN, Sz_corr_NN_val)
+
         end
 
         # diagonalize the odd sector
@@ -74,15 +90,102 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
 
         # calculate and record quantities for each eigenstate
         for (ind, En) in enumerate(Es)
+            eigstate = states[:, ind]
+            Sz_corr_NN_val = Sz_corr_NN_meas(E=En, eigstate=eigstate, N=N, m=Int(N / 2), iseven=false, sectors_info=sectors_info, m0_sectors_info=m0_sectors_info, bonds=bonds, J_xy=J_xy, J_z=J_z)
+
             push!(E, En)
             push!(Esq, En^2)
             push!(M, 0)
             push!(Msq, 0)
             push!(N_tot, (N)) # place holder - to be deleted
+            push!(Sz_corr_NN, Sz_corr_NN_val)
+
         end
     end
 
-    return [E, Esq, M, Msq, N_tot]
+    return [E, Esq, M, Msq, N_tot, Sz_corr_NN]
+end
+
+"""
+    Calculate nearest neighbor Sz correlation. ∑ᵢSzᵢSzⱼ             
+"""
+function Sz_corr_NN_meas(; E, eigstate, N::Int64, m::Int64, iseven=true, sectors_info::Dict{Symbol,Any}, m0_sectors_info=nothing, bonds::Array{Array{Int,1},1}, J_xy::Float64=1.0, J_z::Float64)
+
+    # initialize measurement of the quantity
+    Sz_corr_NN_val = 0
+
+    # if in m!=0 sectors
+    if m != (N / 2)
+
+        # load states info in the sector
+        states = sectors_info[:states][m+1]
+        state_nums = sectors_info[:state_num]
+        state_tot = sectors_info[:state_tot][m+1]
+
+        # loop over all states in the sector
+        for state in states
+
+            # turn state to binary
+            state_binary = digits!(zeros(Int64, 64), state, base=2)
+            #println("printing state_nums")
+            #println(state_nums)
+            state_num = state_nums[state]
+
+            # loop over all the bonds
+            for bond in bonds
+                s1 = bond[1]
+                s2 = bond[2]
+                if state_binary[s1] == state_binary[s2]
+                    Sz_corr_NN_val += 1 / 4 * abs(eigstate[state_num])^2
+                else
+                    Sz_corr_NN_val -= 1 / 4 * abs(eigstate[state_num])^2
+                end
+            end
+        end
+
+    else # if in the m=N/2 (S\_z=0) sector
+        # read in sector info
+        even_states = m0_sectors_info[:even_states]
+        odd_states = m0_sectors_info[:odd_states]
+        even_state_nums = m0_sectors_info[:even_state_num]
+        odd_state_nums = m0_sectors_info[:odd_state_num]
+
+        if iseven # if in the even sector
+            for state in even_states
+                # turn state to binary
+                state_binary = digits!(zeros(Int64, 64), state, base=2)
+                state_num = even_state_nums[state]
+                # loop over all the bonds
+                for bond in bonds
+                    s1 = bond[1]
+                    s2 = bond[2]
+                    if state_binary[s1] == state_binary[s2]
+                        Sz_corr_NN_val += 1 / 4 * abs(eigstate[state_num])^2
+                    else
+                        Sz_corr_NN_val -= 1 / 4 * abs(eigstate[state_num])^2
+                    end
+                end
+            end
+        else # if in the odd sector
+            for state in odd_states
+                # turn state to binary
+                state_binary = digits!(zeros(Int64, 64), state, base=2)
+                state_num = odd_state_nums[state]
+                # loop over all the bonds
+                for bond in bonds
+                    s1 = bond[1]
+                    s2 = bond[2]
+                    if state_binary[s1] == state_binary[s2]
+                        Sz_corr_NN_val += 1 / 4 * abs(eigstate[state_num])^2
+                    else
+                        Sz_corr_NN_val -= 1 / 4 * abs(eigstate[state_num])^2
+                    end
+                end
+            end
+        end
+    end
+
+    return Sz_corr_NN_val
 end
 
 

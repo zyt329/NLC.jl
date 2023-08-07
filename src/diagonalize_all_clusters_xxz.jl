@@ -101,6 +101,7 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
                 jldopen(diag_file, "a+", compress=true) do file
                     file["E"] = quantities[1]
                     file["M"] = quantities[3]
+                    file["Sz_corr_NN"] = quantities[6]
                 end
             catch e
                 saving_error_message = @sprintf "Something wrong with saving cluster # %d, probably due to existing diagonalization data of the same cluster produced from other (parallely) running machines" (cluster_ind)
