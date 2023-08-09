@@ -187,6 +187,7 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
                     file["lnZ"] = lnZstore
                 end
             catch e
+                println(e)
                 saving_error_message = @sprintf "Something wrong with saving cluster # %d, probably due to existing diagonalization data of the same cluster produced from other (parallely) running machines" (cluster_ind)
                 println(saving_error_message)
             end

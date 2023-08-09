@@ -3,7 +3,7 @@
 
     By default we set J_xy=1.0 and J_z=J_z/J_xy. Results for Different J_z could be extracted by multiplying E by J_xy.
 """
-function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64, clusters_info_path::String, diag_folder_path::String, skip_exit_files=true)
+function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64, clusters_info_path::String, diag_folder_path::String, skip_exit_files=true, print_live_prog=false)
 
     # ===================================================#
     # ======      load up cluster information      ======#
@@ -68,6 +68,7 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
                         jldopen(diag_file, "a+", compress=true) do file
                         end
                     catch e
+                        println(e)
                         saving_error_message = @sprintf "Something went wrong creating .jld2 file for cluster # %d" (cluster_ind)
                         println(saving_error_message)
                     end
@@ -86,13 +87,13 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
             # print indicator of saving file
             progress_message = @sprintf "diagonalizing cluster # %d, %.2f" (cluster_ind) (100 * cluster_ind / tot_num_clusters)
             progress_message = progress_message * "% of order $(N)"
-            print(progress_message * "\r")
+            print_live_prog && print(progress_message * "\r")
 
             # diagonalize, get eigen values
             quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, m0_sectors_info=m0_sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
 
             # print indicator of saving file
-            print("saving data" * "\r")
+            print_live_prog && print("saving data" * "\r")
             # use the try block to prevent crush when 2 machines try to save 
             # diagonalization info of the same cluster
             try
