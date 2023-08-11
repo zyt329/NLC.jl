@@ -5,6 +5,11 @@
 """
 function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64, clusters_info_path::String, diag_folder_path::String, skip_exit_files=true)
 
+    MPI.Init()
+    comm = MPI.COMM_WORLD
+    size = MPI.Comm_size(comm)
+    rank = MPI.Comm_rank(comm)
+
     # ===================================================#
     # ======      load up cluster information      ======#
     # ===================================================#
@@ -48,8 +53,16 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
         # total number of clusters at this order
         tot_num_clusters = length(cluster_hash_tags_N)
 
+        # syncronize MPI processes
+        MPI.Barrier(comm)
+
         # loop over all clusters in the Nth order
         for (cluster_ind, cluster_hash_tag) in enumerate(cluster_hash_tags_N)
+
+            # MPI: only try to diagonalize this cluster if mode number of processes = rank
+            if mod(cluster_ind, size) != rank
+                continue
+            end
 
             # the file to hold the eigen values of the cluster
             diag_name = "diagonalized_order$(N)_id" * cluster_hash_tag
@@ -116,8 +129,13 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
 
         end
 
+        # MPI: syncronize MPI processes
+        MPI.Barrier(comm)
+
         println("finished diagonalizing clusters of order " * string(N))
     end
+
+    MPI.Finalize()
 end
 
 
