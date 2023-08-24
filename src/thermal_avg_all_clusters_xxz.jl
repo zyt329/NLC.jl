@@ -75,7 +75,7 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
         !ispath(joinpath(thermal_avg_folder_full_path, "order$(N)")) && mkdir(joinpath(thermal_avg_folder_full_path, "order$(N)"))
 
         # loop over all clusters in the Nth order
-        for (cluster_ind, cluster_hash_tags) in enumerate(cluster_hash_tags_N)
+        for (cluster_ind, cluster_hash_tag) in enumerate(cluster_hash_tags_N)
 
             """
             # =======================================
@@ -84,7 +84,7 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
 
             # read in bond information
             # since bond info start to index at 0, we need to plus 1
-            cluster_bonds = [[bond[1] + 1, bond[2] + 1] for bond in bonds[cluster_hash_tags]]
+            cluster_bonds = [[bond[1] + 1, bond[2] + 1] for bond in bonds[cluster_hash_tag]]
 
             # diagonalize, get eigen values
             quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
@@ -95,7 +95,7 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             # =============================================
 
             # the file to hold the thermal averages of the clusters
-            thermal_avg_fname = "thermal_avg_id" * cluster_hash_tags
+            thermal_avg_fname = "thermal_avg_id" * cluster_hash_tag
             thermal_avg_file = joinpath(thermal_avg_folder_full_path, thermal_avg_folder_orderN, thermal_avg_fname * ".jld2")
 
             # If enabled, skip if thermal average data exists
@@ -136,7 +136,7 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             end
 
             # take thermal averages, using eigen values from diag_file
-            diag_name = "diagonalized_order$(N)_id" * cluster_hash_tags
+            diag_name = "diagonalized_order$(N)_id" * cluster_hash_tag
             diag_file_path = joinpath(diag_folder_path, diag_name * ".jld2")
 
             # print indicator of saving file
@@ -148,18 +148,60 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             #eig_vals_data = h5open(diag_file_path, "r")
             #eig_vals = Dict("E" => read(eig_vals_data["E"]), "M" => read(eig_vals_data["M"]))
             # read in eigen values for the cluster (using HDF5)
-            eig_vals = h5open(diag_file_path, "r")
 
-            # take thermal averages of all T and h
-            quantities_avg = thermal_avg_hT_loop(;
-                Temps=Temps,
-                hs=hs,
-                J=J_xy,
-                g=g,
-                eig_vals=eig_vals
-            )
+            # initialize variables to access data inside try block
+            quantities_avg = nothing
+            eig_vals = nothing
+            try
+                eig_vals = h5open(diag_file_path, "r")
 
+                # take thermal averages of all T and h
+                quantities_avg = thermal_avg_hT_loop(;
+                    Temps=Temps,
+                    hs=hs,
+                    J=J_xy,
+                    g=g,
+                    eig_vals=eig_vals
+                )
+            catch e
+                if eig_vals != nothing # if file was opened but read with error
+                    # close damaged file
+                    close(eig_vals)
+                    println("closed damaged diag_file of cluster id " * cluster_hash_tag)
+                end
+
+                println("re-diagonalizing cluster id" * cluster_hash_tag)
+                # diagonalize the cluster again if diag_file is damaged
+                diagonalize_specific_cluster_xxz(; J_xy=J_xy, J_z=J_z, N=N, cluster_hash_tag=cluster_hash_tag, diag_folder_path=diag_folder_path, bonds=bonds)
+
+                println("re-thermalizing cluster id" * cluster_hash_tag)
+
+                eig_vals = h5open(diag_file_path, "r")
+                # take thermal averages of all T and h
+                quantities_avg = thermal_avg_hT_loop(;
+                    Temps=Temps,
+                    hs=hs,
+                    J=J_xy,
+                    g=g,
+                    eig_vals=eig_vals
+                )
+            end
             close(eig_vals)
+
+            # ======== old thermalizatio code chunk ========
+            # eig_vals = h5open(diag_file_path, "r")
+
+            # # take thermal averages of all T and h
+            # quantities_avg = thermal_avg_hT_loop(;
+            #     Temps=Temps,
+            #     hs=hs,
+            #     J=J_xy,
+            #     g=g,
+            #     eig_vals=eig_vals
+            # )
+
+            # close(eig_vals)
+            # ===========================================
 
             # calculate & store E, M, N (N is place holder for spin models)
             Estore = quantities_avg["E"]
