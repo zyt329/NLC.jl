@@ -5,11 +5,6 @@
 """
 function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64, clusters_info_path::String, diag_folder_path::String, skip_exit_files=true, print_live_prog=false)
 
-    MPI.Init()
-    comm = MPI.COMM_WORLD
-    size = MPI.Comm_size(comm)
-    rank = MPI.Comm_rank(comm)
-
     # ===================================================#
     # ======      load up cluster information      ======#
     # ===================================================#
@@ -31,6 +26,11 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
 
     # prefix of files to hold eigenvalues
     name = "xxz_eigvals"
+
+    MPI.Init()
+    comm = MPI.COMM_WORLD
+    size = MPI.Comm_size(comm)
+    rank = MPI.Comm_rank(comm)
 
     # Loop over the NLCE order
     for N in 2:Nmax
