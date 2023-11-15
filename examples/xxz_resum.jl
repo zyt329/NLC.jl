@@ -213,12 +213,15 @@ function run_resummation(; Nmax_data, simulation_folder_full_path)
             )
         end
 
+    end
+
+    for Nmax in 1:Nmax_data
         # ========================== #
         # = all orders of raw data = #
         # ========================== #
 
         # do the resummation
-        resummation_data = resummation(; Nmax=Nmax, raw_sum_order=(Nmax - 1), nwynn=1, Ofilepath=simulation_folder_full_path, Ofilename="O")
+        resummation_data = resummation(; Nmax=Nmax, raw_sum_order=(1), nwynn=0, Ofilepath=simulation_folder_full_path, Ofilename="O")
 
         raw_data = resummation_data[3][:, end, :, :]
 
@@ -250,7 +253,7 @@ function run_resummation(; Nmax_data, simulation_folder_full_path)
         end
 
         # write to csv
-        raw_data_name = @sprintf "/raw_data_Nmax%d" Nmax
+        raw_data_name = @sprintf "/resummation_data_raw_Nmax%d" Nmax
         open(resummation_folder_path * raw_data_name * ".csv", "w") do io
 
             # write file header
@@ -302,4 +305,4 @@ function run_resummation(; Nmax_data, simulation_folder_full_path)
 end
 
 
-run_resummation(Nmax_data=14, simulation_folder_full_path="/nfs/home/zyt329/Research/xxz/runs/hashtag_simulation_J_z[J_xy32.0000-2/")
+run_resummation(Nmax_data=9, simulation_folder_full_path="/gpfs/scratch/yzhang/Research/xxz/runs/triangle_based_no2_Ising_simulation-1/")
