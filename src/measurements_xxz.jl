@@ -85,7 +85,6 @@ function diagonalize_cluster_xxz(; N::Int64, sectors_info::Dict{Symbol,Any}, m0_
     return [E, Esq, M, Msq, N_tot]
 end
 
-
 """
     do thermal average of quantities read from the file created by E_Quants() and printing()
     Input:
@@ -95,12 +94,18 @@ end
     return:
         An array of thermal average of quantities at temperature of T
 """
-function thermal_avg(; T::Real, J::Real, eig_vals, h::Real=0.0, g::Real)
+function thermal_avg(; T::Real, J::Real, eig_vals, h::Real=0.0, g::Real, Ising=false)
 
     # passing in quantities
-    E::Array{Float64,1} = read(eig_vals["E"])
-    M::Array{Float64,1} = read(eig_vals["M"])
-    N_tot::Array{Float64,1} = ones(size(E)) # place holder
+    if !Ising
+        E::Array{Float64,1} = read(eig_vals["E"])
+        M::Array{Float64,1} = read(eig_vals["M"])
+        N_tot::Array{Float64,1} = ones(size(E)) # place holder
+    else
+        E = eig_vals["E"]
+        M = eig_vals["M"]
+        N_tot = ones(size(E)) # place holder
+    end
 
     # calculate thermal average
     β = 1 / T
@@ -146,7 +151,7 @@ quant_names = ['E' "Esq" 'M' "Msq" "N_tot"]
 
     Method for when h is passed in.
 """
-function thermal_avg_hT_loop(; Temps, J::Real, eig_vals, hs::Vector{Type}=[0.0], g::Real=2.1) where {Type<:Real}
+function thermal_avg_hT_loop(; Temps, J::Real, eig_vals, hs::Vector{Type}=[0.0], g::Real=2.1, Ising=false) where {Type<:Real}
     # read in eigen values for the cluster (using HDF5)
     # eig_vals = h5open(diag_file_path, "r")
 
@@ -160,7 +165,7 @@ function thermal_avg_hT_loop(; Temps, J::Real, eig_vals, hs::Vector{Type}=[0.0],
     N_tot_avgs = Array{Float64}(undef, NT, Nh)
     for (h_ind, h) in enumerate(hs)
         for (T_ind, T) in enumerate(Temps)
-            avgs_T = thermal_avg(T=T, J=J, eig_vals=eig_vals, h=h, g=g)
+            avgs_T = thermal_avg(T=T, J=J, eig_vals=eig_vals, h=h, g=g, Ising=Ising)
             Zs[T_ind, h_ind] = avgs_T["Z"]
             E_avgs[T_ind, h_ind] = avgs_T["E"]
             Esq_avgs[T_ind, h_ind] = avgs_T["Esq"]
