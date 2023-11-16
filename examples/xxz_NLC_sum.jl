@@ -27,7 +27,7 @@ function run_NLC_sum(; Nmax)
     clusters_info_path = "../cluster_info/triangle/"
 
     # pass in simulation folders
-    simulation_folder_full_path = "./test_simulation_J_z[J_xy1.000-1"
+    simulation_folder_full_path = "./test_simulation_J_z[J_xy1.0000-1"
 
     # ==============================
     # ==== thermally average  ======
