@@ -56,6 +56,8 @@ function run_NLCE(; J_z_by_J_xy, Nmax, diag_folder_path)
 
 end
 
+J_z_by_J_xy = 1.0
+
 diag_folder_path = "./test_diagonization_data_J_z[J_xy1.0000-1"
 
 @time run_NLCE(J_z_by_J_xy=Float64(J_z_by_J_xy), Nmax=9, diag_folder_path=diag_folder_path)
