@@ -20,9 +20,6 @@ function run_diagonalization(; J_z, J_xy=1.0, Nmax)
     # make folder for diagonalization data automatically
     diag_folder_full_path = make_indexed_folder(folder_prefix=diag_folder_prefix)
 
-    # put data to existing folder
-    diag_folder_full_path = "/nfs/home/zyt329/Research/xxz/runs/hashtag_diagonization_data_J_z[J_xy16.0000-1/"
-
     # ==============================
     # ==== start diagonalizing  ====
     # ==============================
