@@ -305,4 +305,4 @@ function run_resummation(; Nmax_data, simulation_folder_full_path)
 end
 
 
-run_resummation(Nmax_data=9, simulation_folder_full_path="/gpfs/scratch/yzhang/Research/xxz/runs/triangle_based_no2_Ising_simulation-1/")
+run_resummation(Nmax_data=9, simulation_folder_full_path="./test_simulation_J_z[J_xy1.000-1")
