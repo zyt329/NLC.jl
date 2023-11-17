@@ -1,7 +1,7 @@
 """
 Does NLCE summation, return the raw summations.
 """
-function NLC_sum(; Nmax, clusters_info_path::String, simulation_folder_full_path::String, thermal_avg_folder_full_path::String, diag_folder_path::String)
+function NLC_sum(; Nmax, clusters_info_path::String, simulation_folder_full_path::String, thermal_avg_folder_full_path::String, diag_folder_path::String, print_progress=false)
 
     simulation_param_file_path = joinpath(simulation_folder_full_path, "simulation_parameters.jld2")
     simulation_param_file = h5open(simulation_param_file_path, "r")
@@ -75,8 +75,13 @@ function NLC_sum(; Nmax, clusters_info_path::String, simulation_folder_full_path
     # I think it needs to hold quantities for single sites at O[:,1,:]
     O = zeros(Float64, 6, Nmax + 1, NT, Nh)
 
-    # To hold the weights of all clusters
-    weights = Dict(cluster_hash_tag => zeros(Float64, 6, NT, Nh) for cluster_hash_tag in all_cluster_hash_tags)
+    # To hold the weights of all clusters up to the order of (Nmax - 1)
+    weights = Dict()
+    for N in 1:(Nmax-1)
+        for cluster_hash_tag in cluster_hash_tags[N]
+            weights[cluster_hash_tag] = zeros(Float64, 6, NT, Nh)
+        end
+    end
 
     # Hard coding the contributions from the single site by hand
     # Be careful with the order of quantities in O and in julia code,
@@ -110,7 +115,9 @@ function NLC_sum(; Nmax, clusters_info_path::String, simulation_folder_full_path
             # print indicator of NLC
             progress_message = @sprintf "Doing NLC sum for cluster # %d, %.2f" (cluster_ind) (100 * cluster_ind / tot_num_clusters_N)
             progress_message = progress_message * "% of order $(N)"
-            print(progress_message * "\r")
+            if print_progress
+                print(progress_message * "\r")
+            end
 
             # the file holding the thermal averages of the clusters
 
@@ -166,9 +173,11 @@ function NLC_sum(; Nmax, clusters_info_path::String, simulation_folder_full_path
             end
 
 
-
-            # initialize weights for the cluster
-            # weights = zeros(Float64, 6, NT, Nh)
+            # initialize weights for the current cluster if it's the last order 
+            # This saves memory by not storing all weights of the last order 
+            if N == Nmax
+                weights_Nmax = zeros(Float64, 6, NT, Nh)
+            end
 
             # loop over sub clusters of the current cluster
             for sub_cluster_hash_tag in keys(subgraph_multi[cluster_hash_tag])
@@ -178,39 +187,54 @@ function NLC_sum(; Nmax, clusters_info_path::String, simulation_folder_full_path
                 # In computing contributions from clusters, we first
                 # subtract the subcluster weights, except for the single
                 # site subcluster
+                #=
                 for i = 1:6 # for all 6 quantities
-
-                    weights[cluster_hash_tag][i, :, :] -=
-                        (weights[sub_cluster_hash_tag][i, :, :] * scMult)
-
-                    #=
-                    weights[i, :, :] -=
-                        (weights[i, :, :] * scMult)
-                        =#
+                    if N != Nmax # for all but the last order:
+                        weights[cluster_hash_tag][i, :, :] -=
+                            (weights[sub_cluster_hash_tag][i, :, :] * scMult)
+                    else # for the last order:
+                        weights_Nmax[i, :, :] -=
+                            (weights[sub_cluster_hash_tag][i, :, :] * scMult)
+                    end
+                end =#
+                if N != Nmax # for all but the last order:
+                    weights[cluster_hash_tag][:, :, :] -=
+                        (weights[sub_cluster_hash_tag][:, :, :] * scMult)
+                else # for the last order:
+                    weights_Nmax[:, :, :] -=
+                        (weights[sub_cluster_hash_tag][:, :, :] * scMult)
                 end
             end
 
-            weights[cluster_hash_tag][1, :, :] += Estore[:, :] - N * singleE[:, :]
-            weights[cluster_hash_tag][2, :, :] += Mstore[:, :] - N * singleM[:, :]
-            weights[cluster_hash_tag][3, :, :] += Esqstore[:, :] - N * singleEsq[:, :]
-            weights[cluster_hash_tag][4, :, :] += Msqstore[:, :] - N * singleMsq[:, :]
-            weights[cluster_hash_tag][5, :, :] += Nstore[:, :] - N * singleN[:, :]
-            weights[cluster_hash_tag][6, :, :] += lnZstore[:, :] - N * singlelnZ[:, :]
-
-            #=
-            weights[1, :, :] += Estore[:, :] - N * singleE[:, :]
-            weights[2, :, :] += Mstore[:, :] - N * singleM[:, :]
-            weights[3, :, :] += Esqstore[:, :] - N * singleEsq[:, :]
-            weights[4, :, :] += Msqstore[:, :] - N * singleMsq[:, :]
-            weights[5, :, :] += Nstore[:, :] - N * singleN[:, :]
-            weights[6, :, :] += lnZstore[:, :] - N * singlelnZ[:, :]
-            =#
+            # subtract single-site contributions
+            if N != Nmax # for all but the last order:
+                weights[cluster_hash_tag][1, :, :] += Estore[:, :] - N * singleE[:, :]
+                weights[cluster_hash_tag][2, :, :] += Mstore[:, :] - N * singleM[:, :]
+                weights[cluster_hash_tag][3, :, :] += Esqstore[:, :] - N * singleEsq[:, :]
+                weights[cluster_hash_tag][4, :, :] += Msqstore[:, :] - N * singleMsq[:, :]
+                weights[cluster_hash_tag][5, :, :] += Nstore[:, :] - N * singleN[:, :]
+                weights[cluster_hash_tag][6, :, :] += lnZstore[:, :] - N * singlelnZ[:, :]
+            else # for the last order:
+                weights_Nmax[1, :, :] += Estore[:, :] - N * singleE[:, :]
+                weights_Nmax[2, :, :] += Mstore[:, :] - N * singleM[:, :]
+                weights_Nmax[3, :, :] += Esqstore[:, :] - N * singleEsq[:, :]
+                weights_Nmax[4, :, :] += Msqstore[:, :] - N * singleMsq[:, :]
+                weights_Nmax[5, :, :] += Nstore[:, :] - N * singleN[:, :]
+                weights_Nmax[6, :, :] += lnZstore[:, :] - N * singlelnZ[:, :]
+            end
 
             # We are now ready to put together the partial sums, using
             # the cluster contributions and corresponding lattice constants
-            O[:, N, :, :] += multi[cluster_hash_tag] * weights[cluster_hash_tag][:, :, :]
-            # O[:, N, :, :] += multi[cluster_hash_tag] * weights[:, :, :]
+            if N != Nmax # for all but the last order:
+                O[:, N, :, :] += multi[cluster_hash_tag] * weights[cluster_hash_tag][:, :, :]
+            else # for the last order:
+                O[:, N, :, :] += multi[cluster_hash_tag] * weights_Nmax[:, :, :]
+            end
 
+            # progress checker
+            if mod(cluster_ind, 1000) == 0
+                println("finished NLC sum of #$(cluster_ind) of order $(N)")
+            end
         end
 
         println("\n finished NLCE order" * string(N))

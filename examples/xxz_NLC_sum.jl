@@ -14,47 +14,20 @@ function run_NLC_sum(; Nmax)
     #= DEFINE SIMULATION PARAMETERS =#
     #================================#
 
-    #=
-    # temperature values
-    Temps = vcat(range(0.0, 1.0, length=51))
-    NT = length(Temps)
-
-    # field values
-    hs = vcat(range(0.0, 6.0, length=41))
-    Nh = length(hs)
-
-    """# Jz/Jxy ratio
-    J_z_by_J_xy = J_z_by_J_xy
-
-    # auxiliary variable θ to keep jz and jxy normalized such that Jz^2 + J_xy^2 = 1
-    θ = atan(J_z_by_J_xy)
-
-    # xy interaction
-    J_xy = cos(θ)
-
-    # z interaction
-    J_z = sin(θ)"""
-
-    # g factor
-    g = 1.0
-    =#
+    # don't need to define since it would be automatically passed in 
 
     # ==============================
     # ====  make/find folders   ====
     # ==============================
 
     # path to diagonalization folder, in case thermal data was damaged
-    diag_folder_path = "/nfs/home/zyt329/Research/xxz/runs/hashtag_diagonization_data_J_z[J_xy32.0000-1/"
+    diag_folder_path = "./test_diagonization_data_J_z[J_xy1.0000-1"
 
     # path to cluster info
-    clusters_info_path = "/nfs/home/zyt329/Research/xxz/NLC_clusters_info_JSON/triangle/"
+    clusters_info_path = "../cluster_info/triangle/"
 
-    # make simulation folders
-    #simulation_folder_prefix = @sprintf "hashtag_simulation_J_z[J_xy%.4f" (J_z / J_xy)
-
-    simulation_folder_full_path = "/nfs/home/zyt329/Research/xxz/runs/hashtag_simulation_J_z[J_xy32.0000-2"
-
-    #make_indexed_folder(folder_prefix=simulation_folder_prefix, folder_path="/nfs/home/zyt329/Research/xxz/runs/")
+    # pass in simulation folders
+    simulation_folder_full_path = "./test_simulation_J_z[J_xy1.0000-1"
 
     # ==============================
     # ==== thermally average  ======
@@ -73,11 +46,5 @@ function run_NLC_sum(; Nmax)
 
 end
 
+@time run_NLC_sum(Nmax=9)
 
-
-for J_z_by_J_xy in [32]
-    # run_diagonalization(J_z=Float64(J_z))
-    @time run_NLC_sum(Nmax=14)
-end
-
-#run_NLCE(ARGS, Nmax=9, Max_num_clusters=1500)

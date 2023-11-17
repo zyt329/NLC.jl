@@ -10,8 +10,8 @@ This version highlights the following features:
 
 [1] This version works with the '.json' cluster information provided by Pranav
 
-[2] This version stores diagonalization data for later use. The stored data were only E and M. With compression, the data should take up ~20GB to the 14th order.
+[2] This version stores diagonalization data for later use. The stored data were only E and M. With compression, the data should take up ~20GB to the 14th order for triangular lattice Heisenberg model.
 
-*[3] To check: This version uses not only Sz symmetry, but also parity symmetry. This reduces the computation by a little more than a factor of 2. Whether the implementation have bug needs to be checked. 
+[3] To check: This version uses not only Sz symmetry, but also parity symmetry, for the Heisenberg model. This reduces the computation by a little more than a factor of 2. 
 
-*[4] To check: I have incorporate parallel computing for the diagonalization in a naive way that the program will diagonalize a cluster only if it can't find the data of the cluster in the folder. The reliability of this implementation needs to be checked.
+[4] Implemented efficient parallel computing with MPI for different clusters. Now there should be minimal conflict in diagonalizing large number of clusters.

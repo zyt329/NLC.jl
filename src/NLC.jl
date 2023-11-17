@@ -85,12 +85,21 @@ export single_site_quantities_Heisbg, single_site_quantities_xxz
 include("thermal_avg_all_clusters_xxz.jl")
 export thermal_avg_all_clusters_xxz
 
+include("thermal_avg_all_clusters_Ising.jl")
+export thermal_avg_all_clusters_Ising
+
 # thermal average single cluster
 include("thermal_avg_specific_cluster_xxz.jl")
 export thermal_avg_cluster
 
+include("thermal_avg_specific_cluster_Ising.jl")
+export thermal_avg_cluster_Ising
+
 include("NLC_sum.jl")
 export NLC_sum
+
+include("NLC_sum_Ising.jl")
+export NLC_sum_Ising
 
 # ===============================================
 # ====== load functions to do resummation  ======

@@ -3,7 +3,7 @@
 
     return `multi, thermal_avg_folder_full_path`, the first entry is the multiplicities of each clusters, to use in NLC_sum function. The second entry is path to folder with thermal average data.
 """
-function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulation_folder_full_path::String, clusters_info_path::String, diag_folder_path::String, skip_exit_files=true)
+function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulation_folder_full_path::String, clusters_info_path::String, diag_folder_path::String, skip_exit_files=true, print_progress=false)
 
     NT = length(Temps)
     Nh = length(hs)
@@ -36,6 +36,12 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
         push!(cluster_hash_tags, keys(multi_N))
     end
 
+    # add MPI: initialize
+    MPI.Init()
+    comm = MPI.COMM_WORLD
+    size = MPI.Comm_size(comm)
+    rank = MPI.Comm_rank(comm)
+
 
     # ===================================================#
     # ======      make folder to store data        ======#
@@ -44,20 +50,19 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
     # make folder to hold thermal avg data
     thermal_avg_folder_prefix = "thermal_avg_data"
 
-    # make folder if doesn't exist. Don't index the folder.
     thermal_avg_folder_full_path = joinpath(simulation_folder_full_path, thermal_avg_folder_prefix)
-    !ispath(thermal_avg_folder_full_path) && mkdir(thermal_avg_folder_full_path)
-    #make_indexed_folder(folder_prefix=thermal_avg_folder_prefix, folder_path=simulation_folder_full_path)
+
+    # only process #0 makes folder
+    if rank == 0
+        # make folder if doesn't exist. Don't index the folder.
+        !ispath(thermal_avg_folder_full_path) && mkdir(thermal_avg_folder_full_path)
+        #make_indexed_folder(folder_prefix=thermal_avg_folder_prefix, folder_path=simulation_folder_full_path)
+    end
 
     # =====================================================
     # ======= initialize holders of termal averages =======
     # =====================================================
 
-    # add MPI: initialize
-    MPI.Init()
-    comm = MPI.COMM_WORLD
-    size = MPI.Comm_size(comm)
-    rank = MPI.Comm_rank(comm)
 
     # Loop over the NLCE order
     for N = 2:Nmax
@@ -150,7 +155,9 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             # print indicator of saving file
             progress_message = @sprintf "Thermalizing cluster # %d, %.2f" (cluster_ind) (100 * cluster_ind / tot_num_clusters)
             progress_message = progress_message * "% of order $(N)"
-            print(progress_message * "\r")
+            if print_progress
+                print(progress_message * "\r")
+            end
 
             # read in eigen values for the cluster
             #eig_vals_data = h5open(diag_file_path, "r")
@@ -222,7 +229,9 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             Msqstore = quantities_avg["Msq"] .- quantities_avg["M"] .^ 2
 
             # print indicator of saving file
-            print("saving data" * "\r")
+            if print_progress
+                print("saving data" * "\r")
+            end
             # use the try block to prevent crush when 2 machines try to save 
             # diagonalization info of the same cluster
             try
