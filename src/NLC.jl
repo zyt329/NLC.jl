@@ -49,7 +49,7 @@ include("consts.jl")
 # =================================================
 
 include("utilities.jl")
-export printing, reading_quantities, make_indexed_folder
+export printing, reading_quantities, make_indexed_folder, num_sites
 
 # =================================================
 # ==== load functions to construct Hamiltonians ===

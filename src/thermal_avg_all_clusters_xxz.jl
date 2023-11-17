@@ -53,6 +53,12 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
     # ======= initialize holders of termal averages =======
     # =====================================================
 
+    # add MPI: initialize
+    MPI.Init()
+    comm = MPI.COMM_WORLD
+    size = MPI.Comm_size(comm)
+    rank = MPI.Comm_rank(comm)
+
     # Loop over the NLCE order
     for N = 2:Nmax
 
@@ -66,29 +72,31 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
         # total number of clusters at this order
         tot_num_clusters = length(cluster_hash_tags_N)
 
-        # sleep for 0-2 seconds to avoid parallel programs get synchronized 
-        # and crush when making folder in the next line
-        sleep(rand() * 2)
-
         # create folder to hold data of order n, if folder doesn't exist
         thermal_avg_folder_orderN = "order$(N)"
-        !ispath(joinpath(thermal_avg_folder_full_path, "order$(N)")) && mkdir(joinpath(thermal_avg_folder_full_path, "order$(N)"))
+
+        # syncronize MPI processes
+        MPI.Barrier(comm)
+
+        # only process #0 tries to make folder
+        if rank == 0
+            !ispath(joinpath(thermal_avg_folder_full_path, "order$(N)")) && mkdir(joinpath(thermal_avg_folder_full_path, "order$(N)"))
+        else
+            # sleep for 2-4 seconds to avoid parallel programs get synchronized 
+            # and crush when making folder in the next line
+            sleep(rand() * 2 + 2)
+        end
+
+        # syncronize MPI processes
+        MPI.Barrier(comm)
 
         # loop over all clusters in the Nth order
         for (cluster_ind, cluster_hash_tag) in enumerate(cluster_hash_tags_N)
 
-            """
-            # =======================================
-            # ======= diagonalize the cluster =======
-            # =======================================
-
-            # read in bond information
-            # since bond info start to index at 0, we need to plus 1
-            cluster_bonds = [[bond[1] + 1, bond[2] + 1] for bond in bonds[cluster_hash_tag]]
-
-            # diagonalize, get eigen values
-            quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
-            """
+            # MPI: only try to diagonalize this cluster if mode number of processes = rank
+            if mod(cluster_ind, size) != rank
+                continue
+            end
 
             # =============================================
             # ======= thermally average the cluster =======
@@ -239,6 +247,8 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
             end
         end
 
+        # MPI: syncronize MPI processes
+        MPI.Barrier(comm)
 
         # progress checker for each order
         println("finisehd T average of ORDER ", N)
@@ -250,19 +260,24 @@ function thermal_avg_all_clusters_xxz(; Nmax, J_xy, J_z, g, Temps, hs, simulatio
     # ==== save simulation parameters  ====
     # =====================================
 
-    simulation_parameters_fname = "simulation_parameters"
+    # only rank 0 mpi process save the info
+    if rank == 0
+        simulation_parameters_fname = "simulation_parameters"
 
-    simulation_parameters_file = joinpath(simulation_folder_full_path, simulation_parameters_fname * ".jld2")
+        simulation_parameters_file = joinpath(simulation_folder_full_path, simulation_parameters_fname * ".jld2")
 
-    save(simulation_parameters_file, "Nmax", Nmax,
-        "Temps", Temps, "hs", hs, "J_xy", J_xy, "J_z", J_z, "k_B", k_B, "N_A", N_A, "mu_B", mu_B, "g", g)
+        save(simulation_parameters_file, "Nmax", Nmax,
+            "Temps", Temps, "hs", hs, "J_xy", J_xy, "J_z", J_z, "k_B", k_B, "N_A", N_A, "mu_B", mu_B, "g", g)
 
-    # create null file whose name gives parameters
-    null_file_name = @sprintf "T_[%.2f-%.2f_%i]_h_[%.2f-%.2f_%i]_Kb_%.2f_g_%.4f" Temps[1] Temps[end] length(Temps) hs[1] hs[end] length(hs) k_B g
+        # create null file whose name gives parameters
+        null_file_name = @sprintf "T_[%.2f-%.2f_%i]_h_[%.2f-%.2f_%i]_Kb_%.2f_g_%.4f" Temps[1] Temps[end] length(Temps) hs[1] hs[end] length(hs) k_B g
 
-    null_file = joinpath(simulation_folder_full_path, null_file_name * ".jld2")
+        null_file = joinpath(simulation_folder_full_path, null_file_name * ".jld2")
 
-    save(null_file, "null_file", "null file whose name reveals parameters")
+        save(null_file, "null_file", "null file whose name reveals parameters")
+
+    end
+    MPI.Finalize()
 
     return multi, thermal_avg_folder_full_path
 

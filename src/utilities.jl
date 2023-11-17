@@ -73,3 +73,16 @@ function make_indexed_folder(; folder_prefix, folder_path=".", sID::Int=0)
 
     return folder_full_path
 end
+
+"""
+    Check how many sites there are in a cluster given bonds.
+"""
+function num_sites(bonds::Vector{Vector{Int}})
+    sites = Set()
+    for bond in bonds
+        for site in bond
+            push!(sites, site)
+        end
+    end
+    return length(sites)
+end

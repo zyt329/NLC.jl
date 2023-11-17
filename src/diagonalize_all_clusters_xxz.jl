@@ -26,7 +26,21 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
         merge!(bonds, bonds_N)
         println("Finished read in bond info of order $(N)")
 
-        push!(cluster_hash_tags, keys(bonds_N))
+        push!(cluster_hash_tags, keys(bonds_N))        
+    end
+    
+    sectors_infos = Dict{Any, Any}()
+    m0_sectors_infos = Dict{Any, Any}()
+    for N_sites in 1:(Nmax*2)
+        # Generate sector info for julia script
+        sectors_infos[N_sites] = sectors_info_gen(N=N_sites)
+        # Generate Sᶻ=0 sector info when N_sites is even
+        if iseven(N_sites)
+            m0_sectors_infos[N_sites] = m0_sectors_info_gen(sectors_info=sectors_infos[N_sites], N=N_sites)
+        else
+            # need to pass this variable to diagonalization function
+            m0_sectors_infos[N_sites] = nothing
+        end
     end
 
     # prefix of files to hold eigenvalues
@@ -38,14 +52,14 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
         println("starting diagonalizing order " * string(N))
 
         # Generate sector info for julia script
-        sectors_info = sectors_info_gen(N=N)
-        # Generate Sᶻ=0 sector info when N is even
-        if iseven(N)
-            m0_sectors_info = m0_sectors_info_gen(sectors_info=sectors_info, N=N)
-        else
-            # need to pass this variable to diagonalization function
-            m0_sectors_info = nothing
-        end
+        # sectors_info = sectors_info_gen(N=N)
+        # # Generate Sᶻ=0 sector info when N is even
+        # if iseven(N)
+        #     m0_sectors_info = m0_sectors_info_gen(sectors_info=sectors_info, N=N)
+        # else
+        #     # need to pass this variable to diagonalization function
+        #     m0_sectors_info = nothing
+        # end
 
         # collection of all the clusters' hash tags of the Nth order
         cluster_hash_tags_N = cluster_hash_tags[N]
@@ -95,6 +109,7 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
             # read in bond information
             # since bond info start to index at 0, we need to plus 1
             cluster_bonds = [[bond[1] + 1, bond[2] + 1] for bond in bonds[cluster_hash_tag]]
+            N_sites = num_sites(cluster_bonds)
 
             # print indicator of saving file
             progress_message = @sprintf "diagonalizing cluster # %d, %.2f" (cluster_ind) (100 * cluster_ind / tot_num_clusters)
@@ -102,7 +117,7 @@ function diagonalize_all_clusters_xxz(; J_xy::Float64, J_z::Float64, Nmax::Int64
             print(progress_message * "\r")
 
             # diagonalize, get eigen values
-            quantities = diagonalize_cluster_xxz(N=N, sectors_info=sectors_info, m0_sectors_info=m0_sectors_info, bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
+            quantities = diagonalize_cluster_xxz(N=N_sites, sectors_info=sectors_infos[N_sites], m0_sectors_info=m0_sectors_infos[N_sites], bonds=cluster_bonds, J_xy=1.0, J_z=J_z / J_xy)
 
             # print indicator of saving file
             print("saving data" * "\r")
