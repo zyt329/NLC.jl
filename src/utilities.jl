@@ -98,3 +98,5 @@ function num_sites(bonds::Vector{Vector{Int}})
     end
     return length(sites)
 end
+
+
